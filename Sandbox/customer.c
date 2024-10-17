@@ -8,19 +8,21 @@
 
 #define USER_DB "user.db"
 #define ACCOUNT_DB "account.db"
+#define LOAN_DB "loan.db"
+#define FEEDBACK_DB "feedback.db"
 
 #include "../helper/structure.h"
 
 // Function prototypes
-int authenticate(struct user *loginUser);   // Done
-void login(struct user *loginUser);         // Done
-float view_balance(struct user *loginUser); // Done
-void deposit_money(struct user *loginUser); // Done
-void withdraw_money(struct user *loginUser); //Done
-void transfer_funds(struct user *loginUser);
-void apply_loan(struct user *loginUser);
-void change_password(struct user *loginUser);
-void add_feedback(struct user *loginUser);
+int authenticate(struct user *loginUser);     // Done
+void login(struct user *loginUser);           // Done
+float view_balance(struct user *loginUser);   // Done
+void deposit_money(struct user *loginUser);   // Done
+void withdraw_money(struct user *loginUser);  // Done
+void transfer_funds(struct user *loginUser);  // Done
+void apply_loan(struct user *loginUser);      // Done
+void change_password(struct user *loginUser); // Done
+void add_feedback(struct user *loginUser);    // Done
 void view_transaction_history(struct user *loginUser);
 void logout();                                                       // Done
 unsigned long hash_password(const char *password);                   // Done
@@ -105,20 +107,20 @@ void login(struct user *loginUser)
                 // printf("Withdraw Money");
                 break;
             case 4:
-                // transfer_funds(loginUser);
-                printf("Transfer Funds");
+                transfer_funds(loginUser);
+                // printf("Transfer Funds");
                 break;
             case 5:
-                // apply_loan(loginUser);
-                printf("Apply for a Loan");
+                apply_loan(loginUser);
+                // printf("Apply for a Loan");
                 break;
             case 6:
-                // change_password(loginUser);
-                printf("Change Password");
+                change_password(loginUser);
+                // printf("Change Password");
                 break;
             case 7:
-                // add_feedback(loginUser);
-                printf("Add Feedback");
+                add_feedback(loginUser);
+                // printf("Add Feedback");
                 break;
             case 8:
                 // view_transaction_history(loginUser);
@@ -235,9 +237,9 @@ float view_balance(struct user *loginUser)
     {
         if (strcmp(loginUser->username, userAccount.username) == 0)
         {
-            // lock_record_read(fd, offset);
+            lock_record_read(fd, offset);
             balance = userAccount.balance;
-            // unlock_record_read(fd);
+            unlock_record_read(fd, offset);
         }
     }
     close(fd);
@@ -252,7 +254,7 @@ void deposit_money(struct user *loginUser)
     float total_balance;
     printf("Enter amount to deposit: ");
     scanf("%f", &deposit_amount);
-    strcpy(userAccount.username , loginUser->username);
+    strcpy(userAccount.username, loginUser->username);
     userAccount.balance = view_balance(loginUser);
 
     if (deposit_amount > 0)
@@ -306,7 +308,7 @@ void withdraw_money(struct user *loginUser)
         update_user_balance(&userAccount, -withdraw_amount);
         account_balance = view_balance(loginUser);
 
-        printf("Deposit successful. New balance: %.2f\n", account_balance);
+        printf("Withdraw successful. New balance: %.2f\n", account_balance);
     }
     else
     {
@@ -314,83 +316,208 @@ void withdraw_money(struct user *loginUser)
     }
 }
 
-// void transfer_funds(struct user *loginUser)
-// {
-//     char recipient[50];
-//     float amount;
-//     printf("Enter recipient username: ");
-//     scanf("%s", recipient);
-//     printf("Enter amount to transfer: ");
-//     scanf("%f", &amount);
+void transfer_funds(struct user *loginUser)
+{
+    char recipient[50];
+    float amount;
+    printf("Enter recipient username: ");
+    scanf("%s", recipient);
+    printf("Enter amount to transfer: ");
+    scanf("%f", &amount);
 
-//     // Logic for transferring funds between accounts (requires opening the database again)
-//     // Ensure proper file locking when updating multiple records.
-// }
+    int sender_fd = open(ACCOUNT_DB, O_RDWR);
+    int reciever_fd = open(ACCOUNT_DB, O_RDWR);
 
-// void apply_loan(struct user *loginUser)
-// {
-//     printf("Applying for a loan (details to be implemented)\n");
-// }
+    off_t sender_offset, reciever_offset;
+    struct account sender_account, reciever_account;
 
-// void change_password(struct user *loginUser)
-// {
-//     printf("Changing password (details to be implemented)\n");
-// }
+    printf("Finding...\n");
 
-// void add_feedback(struct user *loginUser)
-// {
-//     printf("Adding feedback (details to be implemented)\n");
-// }
+    while ((sender_offset = lseek(sender_fd, 0, SEEK_CUR)) != -1 && read(sender_fd, &sender_account, sizeof(struct account)) > 0)
+    {
+        printf("Sender UserName : %s\n", sender_account.username);
+        printf("Sender Balance : %2f\n", sender_account.balance);
+
+        if (strcmp(loginUser->username, sender_account.username) == 0)
+        {
+            break;
+        }
+    }
+
+    printf("Sender UserName : %s\n", sender_account.username);
+    printf("Sender Balance : %2f\n", sender_account.balance);
+
+    while ((reciever_offset = lseek(reciever_fd, 0, SEEK_CUR)) != -1 && read(reciever_fd, &reciever_account, sizeof(struct account)) > 0)
+    {
+        if (strcmp(recipient, reciever_account.username) == 0)
+        {
+            break;
+        }
+    }
+
+    printf("Reciever UserName : %s\n", reciever_account.username);
+    printf("Reciever Balance : %2f\n", reciever_account.balance);
+
+    struct flock sender_record_lock, reciever_record_lock;
+    int sender_lock_status, reciever_lock_status;
+
+    sender_record_lock.l_type = F_WRLCK;               // Write lock
+    sender_record_lock.l_whence = SEEK_SET;            // Relative to the start of the file
+    sender_record_lock.l_start = sender_offset;        // Start of the lock
+    sender_record_lock.l_len = sizeof(struct account); // Length of the data (bytes)
+    sender_record_lock.l_pid = getpid();
+
+    sender_lock_status = fcntl(sender_fd, F_SETLK, &sender_record_lock);
+
+    reciever_record_lock.l_type = F_WRLCK;               // Write lock
+    reciever_record_lock.l_whence = SEEK_SET;            // Relative to the start of the file
+    reciever_record_lock.l_start = reciever_offset;      // Start of the lock
+    reciever_record_lock.l_len = sizeof(struct account); // Length of the data (bytes)
+    reciever_record_lock.l_pid = getpid();
+
+    reciever_lock_status = fcntl(reciever_fd, F_SETLK, &reciever_record_lock);
+
+    if (amount > sender_account.balance)
+    {
+        printf("Insufficent Balance");
+        close(sender_fd);
+        close(reciever_fd);
+    }
+    else
+    {
+        lseek(sender_fd, sender_offset, SEEK_SET);
+        float balance = sender_account.balance;
+        float new_amount = balance - amount;
+        sender_account.balance = new_amount;
+        write(sender_fd, &sender_account, sizeof(struct account));
+        sender_record_lock.l_type = F_UNLCK;
+        fcntl(sender_fd, F_SETLK, &sender_record_lock);
+        close(sender_fd);
+
+        // read(reciever_fd, &reciever_account, sizeof(struct account));
+        lseek(reciever_fd, reciever_offset, SEEK_SET);
+        reciever_account.balance += amount;
+        write(reciever_fd, &reciever_account, sizeof(struct account));
+        reciever_record_lock.l_type = F_UNLCK;
+        fcntl(reciever_fd, F_SETLK, &reciever_record_lock);
+        close(reciever_fd);
+    }
+}
+
+void apply_loan(struct user *loginUser)
+{
+    float loan_amount;
+    printf("Enter the Loan Amount: ");
+    scanf("%f", &loan_amount);
+
+    int loan_fd = open(LOAN_DB, O_WRONLY | O_APPEND);
+    if (loan_fd < 0)
+    {
+        perror("Error opening LOAN_DB");
+        return;
+    }
+
+    struct loan loan_account;
+
+    strcpy(loan_account.username, loginUser->username);
+    loan_account.loan_amount = loan_amount;
+    loan_account.status = 2;
+
+    int status = write(loan_fd, &loan_account, sizeof(struct loan));
+    if (status != sizeof(struct loan))
+    {
+        perror("Error writing to LOAN_DB");
+        close(loan_fd);
+        return;
+    }
+    close(loan_fd);
+
+    printf("Loan Successfully Applied\n");
+}
+
+void change_password(struct user *loginUser)
+{
+    int fd = open(USER_DB, O_RDWR);
+    if (fd < 0)
+    {
+        perror("Error opening USER_DB");
+        return;
+    }
+
+    char username[50];
+    char new_password[50];
+    strcpy(username, loginUser->username);
+    off_t offset;
+    struct user find_User;
+
+    printf("Enter the new password : ");
+    scanf("%s", new_password);
+
+    ssize_t read_status;
+    while ((read_status = read(fd, &find_User, sizeof(struct user))) == sizeof(struct user))
+    {
+        if (strcmp(username, find_User.username) == 0)
+        {
+
+            loginUser->hashed_password = hash_password(new_password);
+            offset = lseek(fd, -1*sizeof(struct user), SEEK_CUR); // Move back to the correct position
+            break;
+        }
+    }
+
+    if (read_status == -1)
+    {
+        perror("Error reading USER_DB");
+        close(fd);
+        return;
+    }
+
+    if (offset != -1)
+    {
+        lseek(fd, offset, SEEK_SET);
+        int write_status = write(fd, loginUser, sizeof(struct user));
+        if (write_status == sizeof(struct user))
+        {
+            printf("Password Change Successful\n");
+        }
+        else
+        {
+            perror("Error While Changing Password");
+        }
+    }
+    else
+    {
+        printf("User not found.\n");
+    }
+
+    close(fd);
+}
+
+void add_feedback(struct user *loginUser)
+{
+    printf("Adding feedback (details to be implemented)\n");
+    
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // void view_transaction_history(struct user *loginUser)
 // {
 //     printf("Viewing transaction history (details to be implemented)\n");
-// }
-
-// void logout()
-// {
-//     printf("Logging out...\n");
-// }
-
-// void lock_file(int fd)
-// {
-//     if (flock(fd, LOCK_EX) < 0)
-//     {
-//         perror("File lock error");
-//         exit(1);
-//     }
-// }
-
-// void unlock_file(int fd)
-// {
-//     if (flock(fd, LOCK_UN) < 0)
-//     {
-//         perror("File unlock error");
-//         exit(1);
-//     }
-// }
-
-// void update_user_balance(struct user *user)
-// {
-//     int fd = open(USER_DB, O_RDWR);
-//     if (fd < 0)
-//     {
-//         perror("Error opening user database");
-//         return;
-//     }
-
-//     struct user fileUser;
-//     while (read(fd, &fileUser, sizeof(struct user)) > 0)
-//     {
-//         if (strcmp(user->username, fileUser.username) == 0)
-//         {
-//             lock_file(fd);
-//             fileUser.balance = user->balance;
-//             lseek(fd, -sizeof(struct user), SEEK_CUR);
-//             write(fd, &fileUser, sizeof(struct user));
-//             unlock_file(fd);
-//             break;
-//         }
-//     }
-//     close(fd);
 // }
