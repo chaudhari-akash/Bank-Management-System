@@ -10,6 +10,7 @@
 #define ACCOUNT_DB "account.db"
 #define LOAN_DB "loan.db"
 #define FEEDBACK_DB "feedback.db"
+#define TRANSACTION_DB "transaction.db"
 
 #include "../helper/structure.h"
 
@@ -27,6 +28,7 @@ void view_transaction_history(struct user *loginUser);
 void logout();                                                       // Done
 unsigned long hash_password(const char *password);                   // Done
 void update_user_balance(struct account *userAccount, float amount); // Done
+void append_transaction(struct transaction *trans);
 
 // Main function
 int main()
@@ -123,8 +125,8 @@ void login(struct user *loginUser)
                 // printf("Add Feedback");
                 break;
             case 8:
-                // view_transaction_history(loginUser);
-                printf("View Transaction History");
+                view_transaction_history(loginUser);
+                // printf("View Transaction History");
                 break;
             case 9:
                 logout(loginUser);
@@ -250,6 +252,7 @@ float view_balance(struct user *loginUser)
 void deposit_money(struct user *loginUser)
 {
     struct account userAccount;
+    struct transaction trans;
     float deposit_amount;
     float total_balance;
     printf("Enter amount to deposit: ");
@@ -261,6 +264,13 @@ void deposit_money(struct user *loginUser)
     {
         update_user_balance(&userAccount, deposit_amount);
         total_balance = view_balance(loginUser);
+
+        strcpy(trans.username, loginUser->username);
+        trans.amount = deposit_amount;
+        trans.type = 1;
+        trans.total_amount = total_balance;
+        append_transaction(&trans);
+
         printf("Deposit successful. New balance: %.2f\n", total_balance);
     }
     else
@@ -295,6 +305,7 @@ void update_user_balance(struct account *userAccount, float amount)
 void withdraw_money(struct user *loginUser)
 {
     struct account userAccount;
+    struct transaction trans;
     float account_balance;
     float withdraw_amount;
     printf("Enter amount to withdraw: ");
@@ -308,6 +319,12 @@ void withdraw_money(struct user *loginUser)
         update_user_balance(&userAccount, -withdraw_amount);
         account_balance = view_balance(loginUser);
 
+        strcpy(trans.username, loginUser->username);
+        trans.amount = withdraw_amount;
+        trans.type = 0;
+        trans.total_amount = account_balance;
+        append_transaction(&trans);
+
         printf("Withdraw successful. New balance: %.2f\n", account_balance);
     }
     else
@@ -319,6 +336,7 @@ void withdraw_money(struct user *loginUser)
 void transfer_funds(struct user *loginUser)
 {
     char recipient[50];
+    struct transaction trans_1, trans_2;
     float amount;
     printf("Enter recipient username: ");
     scanf("%s", recipient);
@@ -389,6 +407,13 @@ void transfer_funds(struct user *loginUser)
         float balance = sender_account.balance;
         float new_amount = balance - amount;
         sender_account.balance = new_amount;
+
+        strcpy(trans_1.username, loginUser->username);
+        trans_1.amount = amount;
+        trans_1.type = 0;
+        trans_1.total_amount = new_amount;
+        append_transaction(&trans_1);
+
         write(sender_fd, &sender_account, sizeof(struct account));
         sender_record_lock.l_type = F_UNLCK;
         fcntl(sender_fd, F_SETLK, &sender_record_lock);
@@ -397,6 +422,13 @@ void transfer_funds(struct user *loginUser)
         // read(reciever_fd, &reciever_account, sizeof(struct account));
         lseek(reciever_fd, reciever_offset, SEEK_SET);
         reciever_account.balance += amount;
+
+        strcpy(trans_2.username, loginUser->username);
+        trans_2.amount = amount;
+        trans_2.type = 1;
+        trans_2.total_amount = reciever_account.balance;
+        append_transaction(&trans_2);
+
         write(reciever_fd, &reciever_account, sizeof(struct account));
         reciever_record_lock.l_type = F_UNLCK;
         fcntl(reciever_fd, F_SETLK, &reciever_record_lock);
@@ -460,7 +492,7 @@ void change_password(struct user *loginUser)
         {
 
             loginUser->hashed_password = hash_password(new_password);
-            offset = lseek(fd, -1*sizeof(struct user), SEEK_CUR); // Move back to the correct position
+            offset = lseek(fd, -1 * sizeof(struct user), SEEK_CUR); // Move back to the correct position
             break;
         }
     }
@@ -495,29 +527,112 @@ void change_password(struct user *loginUser)
 
 void add_feedback(struct user *loginUser)
 {
-    printf("Adding feedback (details to be implemented)\n");
-    
+    char feedback[1000];
+    int bytes_read, feedback_fd, write_status;
+    struct feedback user_feedback;
 
+    printf("Enter Feedback: ");
+    fflush(stdout);
+    bytes_read = read(STDIN_FILENO, feedback, sizeof(feedback));
+    feedback[bytes_read - 1] = '\0';
+
+    strcpy(user_feedback.username, loginUser->username);
+    strcpy(user_feedback.feedback, feedback);
+
+    feedback_fd = open(FEEDBACK_DB, O_WRONLY | O_APPEND);
+
+    if (feedback_fd == -1)
+    {
+        perror("Error opening feedback database");
+        return;
+    }
+
+    write_status = write(feedback_fd, &user_feedback, sizeof(struct feedback));
+
+    if (write_status == -1)
+    {
+        perror("Error writing feedback");
+    }
+    close(feedback_fd);
 }
 
+void view_transaction_history(struct user *loginUser)
+{
+    int fd = open(TRANSACTION_DB, O_RDONLY);
+    char debit[20] = "DEBIT";
+    char credit[20] = "CREDIT";
+    if (fd == -1)
+    {
+        perror("Error opening transaction database");
+        return;
+    }
 
+    struct flock lock;
+    lock.l_type = F_RDLCK;    // Read lock
+    lock.l_whence = SEEK_SET; // Relative to the start of the file
+    lock.l_start = 0;         // Lock the entire file
+    lock.l_len = 0;           // 0 means until the end of the file
+    lock.l_pid = getpid();    // Process ID
 
+    while (fcntl(fd, F_SETLKW, &lock) == -1)
+        ;
 
+    struct transaction trans;
 
+    while (read(fd, &trans, sizeof(struct transaction)) > 0)
+    {
+        if (strcmp(trans.username, loginUser->username) == 0)
+        {
+            if (trans.type == 0)
+            {
+                printf("%s : ", debit);
+            }
+            else
+            {
+                printf("%s : ", credit);
+            }
 
+            printf("%f : ", trans.amount);
+            printf("Balance : ");
+            printf("%f : ", trans.total_amount);
+            printf("\n");
+        }
+    }
 
+    lock.l_type = F_UNLCK;
+    fcntl(fd, F_SETLKW, &lock);
+    close(fd);
+}
 
+void append_transaction(struct transaction *trans)
+{
+    int fd = open(TRANSACTION_DB, O_WRONLY | O_APPEND);
+    if (fd == -1)
+    {
+        perror("Error opening transaction database");
+        return;
+    }
 
+    struct flock lock;
+    lock.l_type = F_WRLCK;    // Write lock
+    lock.l_whence = SEEK_SET; // Relative to the start of the file
+    lock.l_start = 0;         // Lock the entire file
+    lock.l_len = 0;           // 0 means until the end of the file
+    lock.l_pid = getpid();    // Process ID
 
+    while (fcntl(fd, F_SETLKW, &lock) == -1)
+        ;
 
+    if (write(fd, trans, sizeof(struct transaction)) == -1)
+    {
+        perror("Error writing transaction");
+    }
 
+    lock.l_type = F_UNLCK;
+    if (fcntl(fd, F_SETLK, &lock) == -1)
+    {
+        perror("Error unlocking file");
+    }
 
-
-
-
-
-
-// void view_transaction_history(struct user *loginUser)
-// {
-//     printf("Viewing transaction history (details to be implemented)\n");
-// }
+    close(fd);
+}
