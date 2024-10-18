@@ -23,6 +23,27 @@ struct account
     float balance;
 };
 
+struct loan
+{
+    char username[50];
+    float loan_amount;
+    int status; // 0:Accepted  1:Rejected   2:Pending
+};
+
+struct feedback
+{
+    char username[50];
+    char feedback[1000];
+};
+
+struct transaction
+{
+    char username[50];
+    int type; // 0: Debit  1 : Credit
+    float amount;
+    float total_amount;
+};
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -66,7 +87,7 @@ void update_account_structure(int fd, off_t offset, struct account *userAccount,
     read(fd, &fileUser, sizeof(struct account));
     float total_amount = userAccount->balance + amount;
     strcpy(fileUser.username, userAccount->username);
-    
+
     fileUser.balance = userAccount->balance;
     if (total_amount >= 0)
     {
@@ -77,7 +98,7 @@ void update_account_structure(int fd, off_t offset, struct account *userAccount,
         printf("Not Enough Balance in your Account");
     }
 
-    lseek(fd, -1*sizeof(struct account), SEEK_CUR);
+    lseek(fd, -1 * sizeof(struct account), SEEK_CUR);
 
     write_status = write(fd, &fileUser, sizeof(struct account));
     if (write_status < 0)
@@ -99,27 +120,6 @@ void update_account_structure(int fd, off_t offset, struct account *userAccount,
     close(fd);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 void lock_record_read(int fd, off_t offset)
 {
     struct flock lock;
@@ -139,17 +139,9 @@ void lock_record_read(int fd, off_t offset)
         close(fd);
         _exit(0);
     }
-
-    lseek_status = lseek(fd, offset, SEEK_SET);
-    if (lseek_status == -1)
-    {
-        perror("Error seeking to position");
-        close(fd);
-        _exit(0);
-    }
 }
 
-void unlock_record_read(int fd)
+void unlock_record_read(int fd, off_t offset)
 {
     struct flock lock;
     int lock_status;
@@ -157,14 +149,14 @@ void unlock_record_read(int fd)
 
     lock.l_type = F_UNLCK;               // Unlock
     lock.l_whence = SEEK_SET;            // Relative to the start of the file
-    lock.l_start = 0;                    // Start of the lock
+    lock.l_start = offset;               // Start of the lock
     lock.l_len = sizeof(struct account); // Length of the data (bytes)
     lock.l_pid = getpid();               // Process ID of the process holding the lock
 
     lock_status = fcntl(fd, F_SETLK, &lock);
     if (lock_status == -1)
     {
-        perror("Error locking file");
+        perror("Error Unlocking file");
         close(fd);
         _exit(0);
     }
