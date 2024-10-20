@@ -6,8 +6,15 @@
 #include <sys/socket.h> /* socket(), bind(), listen(), accept(), connect() */
 #include <netinet/in.h>
 
-#define PORT 6006
+#define MAIN_MENU "Select Your Role:\n1. Admin\n2. Manager\n3. Employee\n4. Customer \n5. Exit\nEnter Your Choice: "
+
+#define PORT 6009
 #define BACKLOG 100
+
+#include "helper/customer.h"
+
+
+void client_handler(int connectionFileDescriptor);
 
 int main()
 {
@@ -21,9 +28,9 @@ int main()
         _exit(0);
     }
 
-    server_address.sin_family = AF_INET;         // IPv4
-    server_address.sin_addr.s_addr = INADDR_ANY; // Bind to all available network interfaces
-    server_address.sin_port = htons(PORT);       // Server will listen to PORT
+    server_address.sin_family = AF_INET;                     // IPv4
+    server_address.sin_addr.s_addr = inet_addr("127.0.0.1"); // Bind to all available network interfaces
+    server_address.sin_port = htons(PORT);                   // Server will listen to PORT
 
     socket_bind_status = bind(socket_descriptor, (struct sockaddr *)&server_address, sizeof(server_address)); // Assigns the address to the socket : socket_descriptor
     if (socket_bind_status == -1)
@@ -44,11 +51,14 @@ int main()
     {
         int client_address_size = sizeof(client_address);
         connection_desciptor = accept(socket_descriptor, (struct sockaddr *)&client_address, &client_address_size); // Accepting a connection on socket : socket_descriptor
+        // printf("Server Socket : %d",socket_descriptor);
+        // printf("Client Socket : %d",connection_desciptor);
         if (connection_desciptor == -1)
         {
             perror("ERROR connecting to Client!");
             close(socket_descriptor);
         }
+
         else
         {
             if (!fork())
@@ -58,9 +68,51 @@ int main()
                 _exit(0);
             }
         }
+        perror("Error: ");
     }
 
     close(socket_descriptor);
 
     return 0;
+}
+
+void client_handler(int connectionFileDescriptor)
+{
+    printf("Client has connected to the server!\n");
+
+    ssize_t serverMessageBytes, clientMessageBytes;
+    int userChoice;
+
+    serverMessageBytes = send(connectionFileDescriptor, MAIN_MENU, strlen(MAIN_MENU),0);
+    if (serverMessageBytes == -1)
+    {
+        perror("Error writing to client socket");
+    }
+
+
+    clientMessageBytes = recv(connectionFileDescriptor, &userChoice, sizeof(int),0);
+    if (clientMessageBytes == -1)
+    {
+        perror("Error reading from client socket");
+    }
+
+    switch (userChoice)
+    {
+    case 1:
+        // printf("ADMIN\n");
+
+        break;
+    case 2:
+        // printf("MANAGER\n");
+        break;
+    case 3:
+        // printf("EMPLOYEE\n");
+        break;
+    case 4:
+        struct user loginUser;
+        login(&loginUser, connectionFileDescriptor);
+        break;
+    default:
+        break;
+    }
 }
