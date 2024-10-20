@@ -1,82 +1,87 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <sys/file.h>
 #include <stdio.h>      /* printf(), perror() */
 #include <stdlib.h>     /*  */
 #include <unistd.h>     /* fork(), close(), read(), _exit() */
 #include <string.h>     /* strncpy() */
 #include <arpa/inet.h>  /* htons() */
-#include <sys/socket.h> /* socket(), bind(), listen(), accept(), connect() */
+#include <sys/socket.h> /* send(), recv() */
 #include <netinet/in.h>
+#include <fcntl.h>
+#include <sys/file.h>
 
 #include "structure.h"
 
 int authenticate(struct user *loginUser);
 float view_balance(struct user *loginUser);
 unsigned long hash_password(const char *password);
-void login(struct user *loginUser, int connectionFileDescriptor);
-void deposit_money(struct user *loginUser);
-void withdraw_money(struct user *loginUser);
-void transfer_funds(struct user *loginUser);
-void apply_loan(struct user *loginUser);
-void change_password(struct user *loginUser);
-void add_feedback(struct user *loginUser);
-void view_transaction_history(struct user *loginUser);
 int update_user_balance(struct account *userAccount, float amount);
+int update_account_structure(int fd, off_t offset, float amount);
+void login(struct user *loginUser, int connectionFileDescriptor, int role_int);
+void deposit_money(struct user *loginUser, int connectionFileDescriptor);
+void withdraw_money(struct user *loginUser, int connectionFileDescriptor);
+void transfer_funds(struct user *loginUser, int connectionFileDescriptor);
+void apply_loan(struct user *loginUser, int connectionFileDescriptor);
+void change_password(struct user *loginUser, int connectionFileDescriptor);
+void add_feedback(struct user *loginUser, int connectionFileDescriptor);
+void view_transaction_history(struct user *loginUser, int connectionFileDescriptor);
 void append_transaction(struct transaction *trans);
 void logout(struct user *loginUser, int connectionFileDescriptor);
-int update_account_structure(int fd, off_t offset, float amount);
+void print_loan_applications(struct user *loginUser, int connectionFileDescriptor);
 
-void login(struct user *loginUser, int connectionFileDescriptor)
+char serverMessage[1000], clientMessage[1000], dummyBuffer[100];
+
+void clearBuffers()
 {
-    enum Role userRole = CUSTOMER;
-    loginUser->role = userRole;
-    char serverMessage[1000], clientMessage[1000], dummyBuffer[100];
     bzero(serverMessage, sizeof(serverMessage));
     bzero(clientMessage, sizeof(clientMessage));
     bzero(dummyBuffer, sizeof(dummyBuffer));
-    strcpy(dummyBuffer, "This is Dummy Message!\n");
+}
+
+void login(struct user *loginUser, int connectionFileDescriptor, int role_int)
+{
+    enum Role userRole;
+    if (role_int == 0)
+    {
+        userRole = ADMIN;
+    }
+    else if (role_int == 1)
+    {
+        userRole = EMPLOYEE;
+    }
+    else if (role_int == 2)
+    {
+        userRole = MANAGER;
+    }
+    else if (role_int == 3)
+    {
+        userRole = CUSTOMER;
+    }
+
+    loginUser->role = userRole;
 
     strcat(serverMessage, "Enter username: ");
     send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
     recv(connectionFileDescriptor, clientMessage, sizeof(clientMessage), 0);
     strcpy(loginUser->username, clientMessage);
-    bzero(serverMessage, sizeof(serverMessage));
-    bzero(clientMessage, sizeof(clientMessage));
+    clearBuffers();
 
     strcat(serverMessage, "Enter password: ");
     send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
     recv(connectionFileDescriptor, clientMessage, sizeof(clientMessage), 0);
-
     loginUser->hashed_password = hash_password(clientMessage);
-    bzero(serverMessage, sizeof(serverMessage));
-    bzero(clientMessage, sizeof(clientMessage));
-    bzero(dummyBuffer, sizeof(dummyBuffer));
+    clearBuffers();
 
-    int status = 0;
-    status = authenticate(loginUser);
+    int choice = authenticate(loginUser);
 
-    snprintf(serverMessage, sizeof(serverMessage), "%d", status);
-
-    send(connectionFileDescriptor, &serverMessage, strlen(serverMessage), 0);
+    snprintf(serverMessage, sizeof(serverMessage), "%d", choice);
+    send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
     recv(connectionFileDescriptor, dummyBuffer, sizeof(dummyBuffer), 0);
+    clearBuffers();
 
-    int s2 = atoi(serverMessage);
-    bzero(dummyBuffer, sizeof(dummyBuffer));
-    bzero(serverMessage, sizeof(serverMessage));
-    bzero(clientMessage, sizeof(clientMessage));
-
-    if (s2 == 1)
+    if (choice == 1)
     {
         while (1)
         {
-            bzero(serverMessage, sizeof(serverMessage));
-            bzero(clientMessage, sizeof(clientMessage));
-
+            clearBuffers();
             strcpy(serverMessage, "\nWelcome, ");
             strcat(serverMessage, loginUser->username);
             strcat(serverMessage, "! Choose an operation:\n");
@@ -85,78 +90,89 @@ void login(struct user *loginUser, int connectionFileDescriptor)
             strcat(serverMessage, "3. Withdraw Money\n");
             strcat(serverMessage, "4. Transfer Funds\n");
             strcat(serverMessage, "5. Apply for a Loan\n");
-            strcat(serverMessage, "6. Change Password\n");
-            strcat(serverMessage, "7. Add Feedback\n");
-            strcat(serverMessage, "8. View Transaction History\n");
-            strcat(serverMessage, "9. Logout\n");
-            strcat(serverMessage, "Enter Your Choice : \n");
+            strcat(serverMessage, "6. View Loan Applications\n");
+            strcat(serverMessage, "7. Change Password\n");
+            strcat(serverMessage, "8. Add Feedback\n");
+            strcat(serverMessage, "9. View Transaction History\n");
+            strcat(serverMessage, "10. Logout\n");
+            strcat(serverMessage, "Enter Your Choice : ");
 
             send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
             recv(connectionFileDescriptor, clientMessage, sizeof(clientMessage), 0);
-            printf("String Message : %s\n", clientMessage);
-            int c2 = atoi(clientMessage);
-           
-            bzero(serverMessage, sizeof(serverMessage));
-            bzero(clientMessage, sizeof(clientMessage));
-            printf("Integer Message : %d\n", c2);
-           
-            bzero(serverMessage, sizeof(serverMessage));
-            bzero(clientMessage, sizeof(clientMessage));
-            switch (c2)
+            int choice_2 = atoi(clientMessage);
+            clearBuffers();
+
+            switch (choice_2)
             {
             case 1:
 
                 float balance = view_balance(loginUser);
-               
-                bzero(serverMessage, sizeof(serverMessage));
-                bzero(clientMessage, sizeof(clientMessage));
                 sprintf(serverMessage, "Your account balance is: %.2f\n", balance);
                 send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
-                int re = recv(connectionFileDescriptor, clientMessage, sizeof(clientMessage), 0);
-                // printf("%s\n",clientMessage);
-                printf("%d",re);
-                bzero(serverMessage, sizeof(serverMessage));
-                bzero(clientMessage, sizeof(clientMessage));
+                recv(connectionFileDescriptor, dummyBuffer, sizeof(dummyBuffer), 0);
+                clearBuffers();
+
                 break;
             case 2:
-                deposit_money(loginUser);
+
+                deposit_money(loginUser, connectionFileDescriptor);
+
                 break;
             case 3:
-                withdraw_money(loginUser);
+
+                withdraw_money(loginUser, connectionFileDescriptor);
+
                 break;
             case 4:
-                transfer_funds(loginUser);
+
+                transfer_funds(loginUser, connectionFileDescriptor);
+
                 break;
             case 5:
-                apply_loan(loginUser);
+
+                apply_loan(loginUser, connectionFileDescriptor);
+
                 break;
             case 6:
-                change_password(loginUser);
+
+                print_loan_applications(loginUser, connectionFileDescriptor);
+
                 break;
             case 7:
-                add_feedback(loginUser);
+
+                change_password(loginUser, connectionFileDescriptor);
+
                 break;
             case 8:
-                view_transaction_history(loginUser);
+
+                add_feedback(loginUser, connectionFileDescriptor);
+
                 break;
             case 9:
-                
-                bzero(serverMessage, sizeof(serverMessage));
-                bzero(clientMessage, sizeof(clientMessage));
+
+                view_transaction_history(loginUser, connectionFileDescriptor);
+
+                break;
+            case 10:
+
                 logout(loginUser, connectionFileDescriptor);
-               
-                bzero(serverMessage, sizeof(serverMessage));
-                bzero(clientMessage, sizeof(clientMessage));
+                recv(connectionFileDescriptor, dummyBuffer, sizeof(dummyBuffer), 0);
+                clearBuffers();
                 return;
+
             default:
-                printf("Invalid choice!\n");
+
+                send(connectionFileDescriptor, "Invalid choice!\n", strlen("Invalid choice!\n"), 0);
+                recv(connectionFileDescriptor, dummyBuffer, sizeof(dummyBuffer), 0);
+                clearBuffers();
             }
         }
     }
     else
     {
-        write(connectionFileDescriptor, "Invalid credentials!\n", strlen("Invalid credentials!\n"));
-        // printf("Invalid credentials!\n");
+        send(connectionFileDescriptor, "Invalid credentials!\n", strlen("Invalid credentials!\n"), 0);
+        recv(connectionFileDescriptor, dummyBuffer, sizeof(dummyBuffer), 0);
+        clearBuffers();
     }
 }
 
@@ -243,7 +259,6 @@ void logout(struct user *loginUser, int connectionFileDescriptor)
     }
     close(fd);
     send(connectionFileDescriptor, "Logging out...\n", strlen("Logging out...\n"), 0);
-    printf("Logging out...\n");
 }
 
 unsigned long hash_password(const char *password)
@@ -289,14 +304,18 @@ float view_balance(struct user *loginUser)
     return balance;
 }
 
-void deposit_money(struct user *loginUser)
+void deposit_money(struct user *loginUser, int connectionFileDescriptor)
 {
     struct account userAccount;
     struct transaction transactionRecord;
     float deposit_amount, total_balance;
 
-    printf("Enter amount to deposit: ");
-    scanf("%f", &deposit_amount);
+    clearBuffers();
+    strcpy(serverMessage, "Enter amount to deposit: ");
+    send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
+    recv(connectionFileDescriptor, clientMessage, sizeof(clientMessage), 0);
+    deposit_amount = atof(clientMessage);
+    clearBuffers();
 
     strcpy(userAccount.username, loginUser->username);
     userAccount.balance = view_balance(loginUser);
@@ -311,12 +330,17 @@ void deposit_money(struct user *loginUser)
         transactionRecord.type = 1;
         transactionRecord.total_amount = total_balance;
         append_transaction(&transactionRecord);
-        printf("Deposit successful. New balance: %.2f\n", total_balance);
+
+        snprintf(serverMessage, sizeof(serverMessage), "Deposit successful. New balance: %.2f\n", total_balance);
+        send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
     }
     else
     {
-        printf("Invalid amount!\n");
+        strcpy(serverMessage, "Invalid amount!\n");
+        send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
     }
+    recv(connectionFileDescriptor, dummyBuffer, sizeof(dummyBuffer), 0);
+    clearBuffers();
 }
 
 int update_user_balance(struct account *userAccount, float amount)
@@ -427,15 +451,19 @@ int update_account_structure(int fd, off_t offset, float amount)
     return success;
 }
 
-void withdraw_money(struct user *loginUser)
+void withdraw_money(struct user *loginUser, int connectionFileDescriptor)
 {
     struct account userAccount;
     struct transaction transactionRecord;
     float total_balance, withdraw_amount;
     int update_status;
 
-    printf("Enter amount to withdraw: ");
-    scanf("%f", &withdraw_amount);
+    clearBuffers();
+    strcpy(serverMessage, "Enter amount to withdraw: ");
+    send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
+    recv(connectionFileDescriptor, clientMessage, sizeof(clientMessage), 0);
+    withdraw_amount = atof(clientMessage);
+    clearBuffers();
 
     if (withdraw_amount > 0)
     {
@@ -453,21 +481,26 @@ void withdraw_money(struct user *loginUser)
 
             append_transaction(&transactionRecord);
 
-            printf("Withdraw successful. New balance: %.2f\n", total_balance);
+            snprintf(serverMessage, sizeof(serverMessage), "Withdraw successful!\nNew balance: %.2f\n", total_balance);
+            send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
         }
         else
         {
             total_balance = view_balance(loginUser);
-            printf("Withdraw failed. Balance: %.2f\n", total_balance);
+            snprintf(serverMessage, sizeof(serverMessage), "Insufficient Balance!\nWithdraw failed.\nBalance: %.2f\n", total_balance);
+            send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
         }
     }
     else
     {
-        printf("Invalid amount!\n");
+        snprintf(serverMessage, sizeof(serverMessage), "Invalid amount!\n");
+        send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
     }
+    recv(connectionFileDescriptor, dummyBuffer, sizeof(dummyBuffer), 0);
+    clearBuffers();
 }
 
-void transfer_funds(struct user *loginUser)
+void transfer_funds(struct user *loginUser, int connectionFileDescriptor)
 {
     char recipient[50];
     struct transaction senderTransactionRecord, recieverTransactionRecord;
@@ -478,10 +511,17 @@ void transfer_funds(struct user *loginUser)
     int sender_fd, reciever_fd;
     float amount;
 
-    printf("Enter recipient username: ");
-    scanf("%s", recipient);
-    printf("Enter amount to transfer: ");
-    scanf("%f", &amount);
+    strcpy(serverMessage, "Enter recipient username: ");
+    send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
+    recv(connectionFileDescriptor, clientMessage, sizeof(clientMessage), 0);
+    strcpy(recipient, clientMessage);
+    clearBuffers();
+
+    strcpy(serverMessage, "Enter amount to transfer: ");
+    send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
+    recv(connectionFileDescriptor, clientMessage, sizeof(clientMessage), 0);
+    amount = atof(clientMessage);
+    clearBuffers();
 
     sender_fd = open(ACCOUNT_DB, O_RDWR);
     reciever_fd = open(ACCOUNT_DB, O_RDWR);
@@ -508,7 +548,8 @@ void transfer_funds(struct user *loginUser)
 
     if (amount > senderAccount.balance)
     {
-        printf("Insufficent Balance");
+        snprintf(serverMessage, sizeof(serverMessage), "Insufficent Balance\nTransfer Unsuccessfull!\n");
+        send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
         close(sender_fd);
         close(reciever_fd);
     }
@@ -562,17 +603,29 @@ void transfer_funds(struct user *loginUser)
         reciever_record_lock.l_type = F_UNLCK;
         fcntl(reciever_fd, F_SETLK, &reciever_record_lock);
         close(reciever_fd);
+
+        snprintf(serverMessage, sizeof(serverMessage), "Transfer Successfull!\nNew Balance : %.2f\n", view_balance(loginUser));
+        send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
     }
+    recv(connectionFileDescriptor, dummyBuffer, sizeof(dummyBuffer), 0);
+    clearBuffers();
 }
 
-void apply_loan(struct user *loginUser)
+void apply_loan(struct user *loginUser, int connectionFileDescriptor)
 {
     float loan_amount;
     struct loan loanAccount;
     struct flock lock;
     int lock_status, write_bytes;
-    printf("Enter the Loan Amount: ");
-    scanf("%f", &loan_amount);
+
+    // printf("Enter the Loan Amount: ");
+    // scanf("%f", &loan_amount);
+
+    strcpy(serverMessage, "Enter the Loan Amount: ");
+    send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
+    recv(connectionFileDescriptor, clientMessage, sizeof(clientMessage), 0);
+    loan_amount = atof(clientMessage);
+    clearBuffers();
 
     int loan_fd = open(LOAN_DB, O_WRONLY | O_APPEND);
     if (loan_fd < 0)
@@ -614,10 +667,14 @@ void apply_loan(struct user *loginUser)
     fcntl(loan_fd, F_SETLK, &lock);
 
     close(loan_fd);
-    printf("Loan Successfully Applied\n");
+
+    strcpy(serverMessage, "Loan Successfully Applied\n");
+    send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
+    recv(connectionFileDescriptor, dummyBuffer, sizeof(dummyBuffer), 0);
+    clearBuffers();
 }
 
-void change_password(struct user *loginUser)
+void change_password(struct user *loginUser, int connectionFileDescriptor)
 {
     int fd = open(USER_DB, O_RDWR);
     if (fd < 0)
@@ -633,8 +690,11 @@ void change_password(struct user *loginUser)
     struct user find_User;
     struct flock lock;
 
-    printf("Enter the new password : ");
-    scanf("%s", new_password);
+    strcpy(serverMessage, "Enter the new password : ");
+    send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
+    recv(connectionFileDescriptor, clientMessage, sizeof(clientMessage), 0);
+    strcpy(new_password, clientMessage);
+    clearBuffers();
 
     ssize_t read_status;
     while ((read_status = read(fd, &find_User, sizeof(struct user))) == sizeof(struct user))
@@ -670,34 +730,35 @@ void change_password(struct user *loginUser)
         int write_status = write(fd, loginUser, sizeof(struct user));
         if (write_status == sizeof(struct user))
         {
-            printf("Password Change Successful\n");
+            strcpy(serverMessage, "Password Change Successful\n");
+            send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
         }
         else
         {
             perror("Error While Changing Password");
+            strcpy(serverMessage, "Password Change Unsuccessful\n");
+            send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
         }
         lock.l_type = F_UNLCK;
         fcntl(fd, F_SETLK, &lock);
     }
-    else
-    {
-        printf("User not found.\n");
-    }
-
+    recv(connectionFileDescriptor, dummyBuffer, sizeof(dummyBuffer), 0);
+    clearBuffers();
     close(fd);
 }
 
-void add_feedback(struct user *loginUser)
+void add_feedback(struct user *loginUser, int connectionFileDescriptor)
 {
     char feedback[1000];
     int bytes_read, feedback_fd, write_status;
     struct feedback user_feedback;
     struct flock lock;
 
-    printf("Enter Feedback: ");
-    fflush(stdout);
-    bytes_read = read(STDIN_FILENO, feedback, sizeof(feedback));
-    feedback[bytes_read - 1] = '\0';
+    strcpy(serverMessage, "Enter Feedback: ");
+    send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
+    recv(connectionFileDescriptor, clientMessage, sizeof(clientMessage), 0);
+    strcpy(feedback, clientMessage);
+    clearBuffers();
 
     strcpy(user_feedback.username, loginUser->username);
     strcpy(user_feedback.feedback, feedback);
@@ -724,12 +785,17 @@ void add_feedback(struct user *loginUser)
         perror("Error writing feedback");
     }
 
+    strcpy(serverMessage, "Feedback Submitted!\n");
+    send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
+    recv(connectionFileDescriptor, dummyBuffer, sizeof(dummyBuffer), 0);
+    clearBuffers();
+
     lock.l_type = F_UNLCK;
     fcntl(feedback_fd, F_SETLK, &lock);
     close(feedback_fd);
 }
 
-void view_transaction_history(struct user *loginUser)
+void view_transaction_history(struct user *loginUser, int connectionFileDescriptor)
 {
     int fd = open(TRANSACTION_DB, O_RDONLY);
     char debit[20] = "DEBIT";
@@ -752,25 +818,41 @@ void view_transaction_history(struct user *loginUser)
 
     struct transaction trans;
 
+    strcpy(serverMessage, "\t\tYour Transactions\n");
+
     while (read(fd, &trans, sizeof(struct transaction)) > 0)
     {
+
         if (strcmp(trans.username, loginUser->username) == 0)
         {
             if (trans.type == 0)
             {
-                printf("%s : ", debit);
+                // snprintf(serverMessage, sizeof(serverMessage), "%s : ", debit);
+                strcat(serverMessage, debit);
             }
             else
             {
-                printf("%s : ", credit);
+                // snprintf(serverMessage, sizeof(serverMessage), "%s : ", credit);
+                strcat(serverMessage, credit);
             }
 
-            printf("%f : ", trans.amount);
-            printf("Balance : ");
-            printf("%f : ", trans.total_amount);
-            printf("\n");
+            // printf("%f : ", trans.amount);
+            // printf("Balance : ");
+            // printf("%f : ", trans.total_amount);
+            // printf("\n");
+            char str[20];
+            sprintf(str, "%.2f", trans.amount);
+            strcat(serverMessage, str);
+            strcat(serverMessage, ": Balance : ");
+            char str1[20];
+            sprintf(str1, "%.2f\n", trans.total_amount);
+            strcat(serverMessage, str1);
         }
     }
+
+    send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
+    recv(connectionFileDescriptor, dummyBuffer, sizeof(dummyBuffer), 0);
+    clearBuffers();
 
     lock.l_type = F_UNLCK;
     fcntl(fd, F_SETLKW, &lock);
@@ -806,6 +888,48 @@ void append_transaction(struct transaction *trans)
     {
         perror("Error unlocking file");
     }
+
+    close(fd);
+}
+
+void print_loan_applications(struct user *loginUser, int connectionFileDescriptor)
+{
+    struct loan loanApplications;
+    int fd = open(LOAN_DB, O_RDONLY);
+    if (fd < 0)
+    {
+        perror("Error opening feedback database");
+        return;
+    }
+
+    strcpy(serverMessage, "Loan Applications:\n");
+    while (read(fd, &loanApplications, sizeof(struct loan)) > 0)
+    {
+        if (strcmp(loanApplications.username, loginUser->username) == 0)
+        {
+            char loanAmount[20];
+            char loanStatus[20];
+            if (loanApplications.status == 0)
+            {
+                strcpy(loanStatus, "Accepted\n");
+            }
+            else if (loanApplications.status == 1)
+            {
+                strcpy(loanStatus, "Rejected\n");
+            }
+            else if (loanApplications.status == 2)
+            {
+                strcpy(loanStatus, "Pending\n");
+            }
+            snprintf(loanAmount, sizeof(loanAmount), "%.2f", loanApplications.loan_amount);
+            strcat(serverMessage, loanAmount);
+            strcat(serverMessage, " : ");
+            strcat(serverMessage, loanStatus);
+        }
+    }
+    send(connectionFileDescriptor, serverMessage, strlen(serverMessage), 0);
+    recv(connectionFileDescriptor, dummyBuffer, sizeof(dummyBuffer), 0);
+    clearBuffers();
 
     close(fd);
 }

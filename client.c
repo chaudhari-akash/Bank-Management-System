@@ -6,17 +6,23 @@
 #include <sys/socket.h> /* socket(), bind(), listen(), accept(), connect() */
 #include <netinet/in.h>
 
-#define PORT 6009
+#define PORT 6008
 #define BACKLOG 100
-char readBuffer[1000], writeBuffer[1000];
+char readBuffer[1000], writeBuffer[1000], dummyBuffer[100];
 
 void clearMemory()
 {
-    memset(readBuffer, 0, sizeof(readBuffer));
-    memset(writeBuffer, 0, sizeof(writeBuffer));
+    bzero(readBuffer, sizeof(readBuffer));
+    bzero(writeBuffer, sizeof(writeBuffer));
+    bzero(dummyBuffer, sizeof(dummyBuffer));
 }
 
+void fillDummy()
+{
+    strcpy(dummyBuffer, "This is a Dummy Message\n");
+}
 void server_handler(int connection_desciptor);
+
 int main()
 {
     struct sockaddr_in server_address;
@@ -48,9 +54,9 @@ int main()
 
 void server_handler(int connection_desciptor)
 {
-    printf("Client has connected to the server!\n");
+    printf("Connected to the Server!\n");
 
-    ssize_t readBytes, writeBytes;
+    ssize_t readBytes, writeBytes, dummyBytes;
     int userChoice;
 
     clearMemory();
@@ -62,7 +68,6 @@ void server_handler(int connection_desciptor)
     }
 
     printf("%s", readBuffer);
-
     scanf("%d", &userChoice);
 
     writeBytes = send(connection_desciptor, &userChoice, sizeof(int), 0);
@@ -71,6 +76,8 @@ void server_handler(int connection_desciptor)
         perror("Error Occured While Writing to Server");
         exit(0);
     }
+
+    clearMemory();
 
     switch (userChoice)
     {
@@ -82,89 +89,191 @@ void server_handler(int connection_desciptor)
     case 3:
         break;
     case 4:
-        clearMemory();
         recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
-
         printf("%s", readBuffer);
         scanf("%s", writeBuffer);
-
         send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
-
-        // bzero(password_prompt, sizeof(password_prompt));
-        // perror("Error");
-
         clearMemory();
 
         recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
         printf("%s", readBuffer);
         scanf("%s", writeBuffer);
         send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
-
         clearMemory();
 
-
-        int status = 0;
-        int cust_choice;
-        char dummy[30];
-        bzero(dummy, sizeof(dummy));
-        strcpy(dummy, "Hello\n");
-
+        fillDummy();
         recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
-        int s1 = atoi(readBuffer);
-        send(connection_desciptor, dummy, strlen(dummy), 0);
-        bzero(dummy, sizeof(dummy));
-        if (s1 == 1)
+        int status = atoi(readBuffer);
+        send(connection_desciptor, dummyBuffer, strlen(dummyBuffer), 0);
+        clearMemory();
+
+        if (status == 1)
         {
             while (1)
             {
-                clearMemory();
+                int cust_choice;
+
                 recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
                 printf("%s", readBuffer);
                 scanf("%s", writeBuffer);
                 send(connection_desciptor, writeBuffer, sizeof(writeBuffer), 0);
                 cust_choice = atoi(writeBuffer);
                 clearMemory();
+
                 switch (cust_choice)
                 {
                 case 1:
-                    clearMemory();
+
                     recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
                     printf("%s", readBuffer);
+                    fillDummy();
+                    send(connection_desciptor, dummyBuffer, strlen(dummyBuffer), 0);
                     clearMemory();
-                    bzero(dummy, sizeof(dummy));
-                    strcpy(dummy, "Hello\n");
-                    send(connection_desciptor, dummy, strlen(dummy), 0);
-                    bzero(dummy, sizeof(dummy));
-                    clearMemory();
+
                     break;
                 case 2:
-                    break;
-                case 3:
-                    break;
-                case 4:
-                    break;
-                case 5:
-                    break;
-                case 6:
-                    break;
-                case 7:
-                    break;
-                case 8:
-                    break;
-                case 9:
-                    clearMemory();
+
                     recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
                     printf("%s", readBuffer);
+                    scanf("%s", writeBuffer);
+                    send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
                     clearMemory();
+
+                    recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+                    printf("%s", readBuffer);
+                    fillDummy();
+                    send(connection_desciptor, dummyBuffer, strlen(dummyBuffer), 0);
+                    clearMemory();
+
+                    break;
+                case 3:
+
+                    recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+                    printf("%s", readBuffer);
+                    scanf("%s", writeBuffer);
+                    send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
+                    clearMemory();
+
+                    recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+                    printf("%s", readBuffer);
+                    fillDummy();
+                    send(connection_desciptor, dummyBuffer, strlen(dummyBuffer), 0);
+                    clearMemory();
+
+                    break;
+                case 4:
+
+                    recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+                    printf("%s", readBuffer);
+                    scanf("%s", writeBuffer);
+                    send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
+                    clearMemory();
+
+                    recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+                    printf("%s", readBuffer);
+                    scanf("%s", writeBuffer);
+                    send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
+                    clearMemory();
+
+                    recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+                    printf("%s", readBuffer);
+                    fillDummy();
+                    send(connection_desciptor, dummyBuffer, strlen(dummyBuffer), 0);
+                    clearMemory();
+
+                    break;
+                case 5:
+
+                    recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+                    printf("%s", readBuffer);
+                    scanf("%s", writeBuffer);
+                    send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
+                    clearMemory();
+
+                    recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+                    printf("%s", readBuffer);
+                    fillDummy();
+                    send(connection_desciptor, dummyBuffer, strlen(dummyBuffer), 0);
+                    clearMemory();
+
+                    break;
+                case 6:
+                    recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+                    printf("%s", readBuffer);
+                    fillDummy();
+                    send(connection_desciptor, dummyBuffer, strlen(dummyBuffer), 0);
+                    clearMemory();
+                    break;
+                case 7:
+
+                    recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+                    printf("%s", readBuffer);
+                    scanf("%s", writeBuffer);
+                    send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
+                    clearMemory();
+
+                    recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+                    printf("%s", readBuffer);
+                    fillDummy();
+                    send(connection_desciptor, dummyBuffer, strlen(dummyBuffer), 0);
+                    clearMemory();
+
+                    break;
+                case 8:
+
+                    recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+                    char feedback[1000];
+                    printf("%s", readBuffer);
+                    fflush(stdout);
+                    int bytes_read = read(STDIN_FILENO, writeBuffer, sizeof(writeBuffer));
+                    writeBuffer[bytes_read - 1] = '\0';
+                    send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
+                    clearMemory();
+
+                    recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+                    printf("%s", readBuffer);
+                    fillDummy();
+                    send(connection_desciptor, dummyBuffer, strlen(dummyBuffer), 0);
+                    clearMemory();
+
+                    break;
+                case 9:
+
+                    recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+                    printf("%s", readBuffer);
+                    fillDummy();
+                    send(connection_desciptor, dummyBuffer, strlen(dummyBuffer), 0);
+                    clearMemory();
+
+                    break;
+                case 10:
+
+                    recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+                    printf("%s", readBuffer);
+                    fillDummy();
+                    send(connection_desciptor, dummyBuffer, strlen(dummyBuffer), 0);
+                    clearMemory();
+
                     return;
+                    break;
+
+                default:
+                    recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+                    printf("%s", readBuffer);
+                    fillDummy();
+                    send(connection_desciptor, dummyBuffer, strlen(dummyBuffer), 0);
+                    clearMemory();
                     break;
                 }
             }
         }
         else
         {
-            // recv(connection_desciptor, message, sizeof(message), 0);
-            // printf("%s", message);
+            recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+            printf("%s", readBuffer);
+            fillDummy();
+            send(connection_desciptor, dummyBuffer, strlen(dummyBuffer), 0);
+            clearMemory();
         }
 
         break;

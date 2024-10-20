@@ -8,11 +8,10 @@
 
 #define MAIN_MENU "Select Your Role:\n1. Admin\n2. Manager\n3. Employee\n4. Customer \n5. Exit\nEnter Your Choice: "
 
-#define PORT 6009
+#define PORT 6008
 #define BACKLOG 100
 
 #include "helper/customer.h"
-
 
 void client_handler(int connectionFileDescriptor);
 
@@ -51,8 +50,6 @@ int main()
     {
         int client_address_size = sizeof(client_address);
         connection_desciptor = accept(socket_descriptor, (struct sockaddr *)&client_address, &client_address_size); // Accepting a connection on socket : socket_descriptor
-        // printf("Server Socket : %d",socket_descriptor);
-        // printf("Client Socket : %d",connection_desciptor);
         if (connection_desciptor == -1)
         {
             perror("ERROR connecting to Client!");
@@ -78,19 +75,17 @@ int main()
 
 void client_handler(int connectionFileDescriptor)
 {
-    printf("Client has connected to the server!\n");
-
+    printf("Connected to Client!\n");
     ssize_t serverMessageBytes, clientMessageBytes;
     int userChoice;
 
-    serverMessageBytes = send(connectionFileDescriptor, MAIN_MENU, strlen(MAIN_MENU),0);
+    serverMessageBytes = send(connectionFileDescriptor, MAIN_MENU, strlen(MAIN_MENU), 0);
     if (serverMessageBytes == -1)
     {
         perror("Error writing to client socket");
     }
 
-
-    clientMessageBytes = recv(connectionFileDescriptor, &userChoice, sizeof(int),0);
+    clientMessageBytes = recv(connectionFileDescriptor, &userChoice, sizeof(int), 0);
     if (clientMessageBytes == -1)
     {
         perror("Error reading from client socket");
@@ -99,18 +94,20 @@ void client_handler(int connectionFileDescriptor)
     switch (userChoice)
     {
     case 1:
-        // printf("ADMIN\n");
-
+        struct user admin;
+        login(&admin, connectionFileDescriptor, 0);
         break;
     case 2:
-        // printf("MANAGER\n");
+        struct user manager;
+        login(&manager, connectionFileDescriptor, 2);
         break;
     case 3:
-        // printf("EMPLOYEE\n");
+        struct user employee;
+        login(&employee, connectionFileDescriptor, 1);
         break;
     case 4:
-        struct user loginUser;
-        login(&loginUser, connectionFileDescriptor);
+        struct user customer;
+        login(&customer, connectionFileDescriptor, 3);
         break;
     default:
         break;
