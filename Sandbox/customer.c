@@ -8,7 +8,6 @@
 
 #include "../helper/structure.h"
 
-
 int authenticate(struct user *loginUser);
 float view_balance(struct user *loginUser);
 unsigned long hash_password(const char *password);
@@ -25,35 +24,33 @@ void append_transaction(struct transaction *trans);
 void logout(struct user *loginUser);
 int update_account_structure(int fd, off_t offset, float amount);
 
+// int main()
+// {
+//     int choice;
+//     struct user loginUser;
 
-int main()
-{
-    int choice;
-    struct user loginUser;
+//     while (1)
+//     {
+//         printf("Banking System\n");
+//         printf("1. Login\n");
+//         printf("2. Exit\n");
+//         printf("Enter your choice: ");
+//         scanf("%d", &choice);
 
-    while (1)
-    {
-        printf("Banking System\n");
-        printf("1. Login\n");
-        printf("2. Exit\n");
-        printf("Enter your choice: ");
-        scanf("%d", &choice);
-
-        switch (choice)
-        {
-        case 1:
-            login(&loginUser);
-            break;
-        case 2:
-            printf("Exiting...\n");
-            exit(0);
-        default:
-            printf("Invalid choice!\n");
-        }
-    }
-    return 0;
-}
-
+//         switch (choice)
+//         {
+//         case 1:
+//             login(&loginUser);
+//             break;
+//         case 2:
+//             printf("Exiting...\n");
+//             exit(0);
+//         default:
+//             printf("Invalid choice!\n");
+//         }
+//     }
+//     return 0;
+// }
 
 void login(struct user *loginUser)
 {

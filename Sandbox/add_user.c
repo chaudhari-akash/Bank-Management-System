@@ -7,29 +7,23 @@
 #include <sys/types.h>
 #include <errno.h>
 
+#define ID_FILE "id.db"
 #define USER_DB "user.db"
 #define ACCOUNT_DB "account.db"
 
-// Enum to represent the role of users
-enum Role
-{
-    ADMIN,    // 0
-    EMPLOYEE, // 1
-    MANAGER,  // 2
-    CUSTOMER  // 3
-};
-
-// Structure to represent a user
 struct user
 {
+    int user_id;
     char username[50];
     unsigned long hashed_password;
-    enum Role role;
-    int status; // 0:Active  1:Inactive
+    int role;    // 0:Admin   1: Employee   2:Manager   3:Customer
+    int session; // 0:In Use  1: Not in Use
+    int status;  // 0:Active  1: Inactive
 };
 
 struct account
 {
+    int user_id;
     char username[50];
     float balance;
 };
@@ -48,7 +42,7 @@ unsigned long hash_password(const char *password)
 }
 
 // Function to get role from input
-enum Role getRoleFromInput()
+int getRoleFromInput()
 {
     int roleInput;
     printf("Select role:\n");
@@ -62,76 +56,111 @@ enum Role getRoleFromInput()
     switch (roleInput)
     {
     case 1:
-        return ADMIN;
+        return 0;
     case 2:
-        return EMPLOYEE;
+        return 1;
     case 3:
-        return MANAGER;
+        return 2;
     case 4:
-        return CUSTOMER;
+        return 3;
     default:
         printf("Invalid role. Defaulting to Customer.\n");
-        return CUSTOMER;
+        return 3;
     }
 }
 
+int initiate_user_id()
+{
+    int fd = open(ID_FILE, O_RDWR | O_CREAT, 0644);
+    char ID[100];
+    strcpy(ID, "1000");
+    write(fd, ID, sizeof(ID));
+    close(fd);
+}
+
+int generate_user_id()
+{
+    int fd = open(ID_FILE, O_RDWR, 0644);
+    int gen_id;
+    char ID[100];
+
+    struct flock lock;
+    lock.l_type = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 0;
+    lock.l_pid = getpid();
+
+    fcntl(fd, F_SETLK, &lock);
+    read(fd, ID, sizeof(ID));
+    gen_id = atoi(ID);
+    gen_id += 1;
+    bzero(ID, sizeof(ID));
+    snprintf(ID, sizeof(ID), "%d", gen_id);
+    lseek(fd, 0, SEEK_SET);
+    write(fd, ID, sizeof(ID));
+    lock.l_type = F_UNLCK;
+    fcntl(fd, F_SETLK, &lock);
+
+    return gen_id;
+}
+
 // Function to add a user to the database
-void addUser()
+void addUser(int role)
 {
     struct user newUser;
-    struct account newAccount;
-    char username1[50];
+    char username[50];
+    char password[50];
 
-    // Get username and password
     printf("Enter username: ");
-    scanf("%s", username1);
-    strcpy(newUser.username, username1);
-    strcpy(newAccount.username, username1);
+    scanf("%s", username);
+    strcpy(newUser.username, username);
 
-    newAccount.balance = 0;
     printf("Enter password: ");
-    char pass[50];
-    scanf("%s", pass);
-    newUser.hashed_password = hash_password(pass);
-    // Get role
-    newUser.role = getRoleFromInput();
-    newUser.status = 1;
+    scanf("%s", password);
+    newUser.user_id = generate_user_id();
+    newUser.hashed_password = hash_password(password);
+    newUser.role = role;
+    newUser.status = 0;  // ACTIVE
+    newUser.session = 1; // INACTIVE
 
-    // Open the user database file
-    int fd = open(USER_DB, O_WRONLY | O_APPEND | O_CREAT, 0666);
-    int fd2 = open(ACCOUNT_DB, O_WRONLY | O_APPEND | O_CREAT, 0666);
-    if (fd < 0)
+    int user_fd = open(USER_DB, O_WRONLY | O_APPEND, 0666);
+    if (user_fd < 0)
     {
         perror("Error opening user database");
         exit(1);
     }
 
-    // Write user data to the file
-    if (write(fd, &newUser, sizeof(struct user)) < 0)
+    if (write(user_fd, &newUser, sizeof(struct user)) < 0)
     {
         perror("Error writing to user database");
-        close(fd);
+        close(user_fd);
         exit(1);
     }
 
-    printf("User added successfully!\n");
-
-    if (write(fd2, &newAccount, sizeof(struct account)) < 0)
+    if (role == 3)
     {
-        perror("Error writing to account database");
-        close(fd2);
-        exit(1);
+        int account_fd = open(ACCOUNT_DB, O_WRONLY | O_APPEND, 0666);
+        struct account newAccount;
+        newAccount.user_id = newUser.user_id;
+        strcpy(newAccount.username, username);
+        newAccount.balance = 0;
+        if (write(account_fd, &newAccount, sizeof(struct account)) < 0)
+        {
+            perror("Error writing to account database");
+            close(account_fd);
+            exit(1);
+        }
+        close(account_fd);
     }
-
-    printf("Account added successfully!\n");
-
-    // Close the file
-    close(fd);
-    close(fd2);
+    printf("Your User ID : %d\n", newUser.user_id);
+    printf("User added successfully!\n");
+    close(user_fd);
 }
 
 int main()
 {
-    addUser();
+    int new_role = getRoleFromInput();
+    addUser(new_role);
     return 0;
 }

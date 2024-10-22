@@ -3,104 +3,53 @@
 #define LOAN_DB "Sandbox/loan.db"
 #define FEEDBACK_DB "Sandbox/feedback.db"
 #define TRANSACTION_DB "Sandbox/transaction.db"
+#define ID_FILE "Sandbox/id.db"
 
-// Enum to represent the role of users
-enum Role
-{
-    ADMIN,    // 0
-    EMPLOYEE, // 1
-    MANAGER,  // 2
-    CUSTOMER  // 3
-};
+#define MAIN_MENU "Select Your Role:\n1. Admin\n2. Manager\n3. Employee\n4. Customer \n5. Exit\nEnter Your Choice: "
 
-// Structure to represent a user
+#define PORT 6008
+#define BACKLOG 100
+
 struct user
 {
+    int user_id;
     char username[50];
     unsigned long hashed_password;
-    enum Role role;
-    int status; // 0:Active  1:Inactive
+    int role;    // 0:Admin   1: Employee   2:Manager   3:Customer
+    int session; // 0:In Use  1: Not in Use
+    int status;  // 0:Active  1: Inactive
 };
 
-// Structure to represent a account
 struct account
 {
+    int user_id;
     char username[50];
     float balance;
 };
 
-// Structure to represent loan
 struct loan
 {
+    int loan_id;
+    int user_id;
     char username[50];
     float loan_amount;
     int status; // 0:Accepted  1:Rejected   2:Pending
+    int assigned_id;
 };
 
-// Structure to represent Feedback
 struct feedback
 {
+    int user_id;
     char username[50];
     char feedback[1000];
 };
 
-// Structure to represent Transaction
 struct transaction
 {
+    int user_id;
     char username[50];
     int type; // 0: Debit  1 : Credit
     float amount;
     float total_amount;
+    char timestamp[100];
 };
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <sys/file.h>
-
-
-
-void lock_record_read(int fd, off_t offset)
-{
-    struct flock lock;
-    int lock_status;
-    int lseek_status;
-
-    lock.l_type = F_RDLCK;               // Read lock
-    lock.l_whence = SEEK_SET;            // Relative to the start of the file
-    lock.l_start = offset;               // Start of the lock
-    lock.l_len = sizeof(struct account); // Length of the data (bytes)
-    lock.l_pid = getpid();               // Process ID of the process holding the lock
-
-    lock_status = fcntl(fd, F_SETLK, &lock);
-    if (lock_status == -1)
-    {
-        perror("Error locking file");
-        close(fd);
-        _exit(0);
-    }
-}
-
-void unlock_record_read(int fd, off_t offset)
-{
-    struct flock lock;
-    int lock_status;
-    int lseek_status;
-
-    lock.l_type = F_UNLCK;               // Unlock
-    lock.l_whence = SEEK_SET;            // Relative to the start of the file
-    lock.l_start = offset;               // Start of the lock
-    lock.l_len = sizeof(struct account); // Length of the data (bytes)
-    lock.l_pid = getpid();               // Process ID of the process holding the lock
-
-    lock_status = fcntl(fd, F_SETLK, &lock);
-    if (lock_status == -1)
-    {
-        perror("Error Unlocking file");
-        close(fd);
-        _exit(0);
-    }
-}

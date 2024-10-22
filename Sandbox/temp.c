@@ -1,9 +1,21 @@
-
-
 #include <stdio.h>
+#include <time.h>
 
-int main()
-{
-    char menu[1000] = "Select Your Role:\n 1. Admin\n 2. Manager\n 3. Employee\n 4. Customer\n 5. Exit\n";
-    printf("%s", menu);
+int main() {
+    // Create a buffer to hold the formatted date and time
+    char datetime[20];
+
+    // Get the current time
+    time_t now = time(NULL);
+
+    // Convert to local time format
+    struct tm *local = localtime(&now);
+
+    // Format the time and date as a string (YYYY-MM-DD HH:MM:SS)
+    strftime(datetime, sizeof(datetime), "%d-%m-%Y %H:%M", local);
+
+    // Print the formatted string
+    printf("Current time: %s\n", datetime);
+
+    return 0;
 }

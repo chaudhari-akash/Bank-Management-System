@@ -1,19 +1,24 @@
-#include <stdio.h>      /* printf(), perror() */
-#include <stdlib.h>     /*  */
-#include <unistd.h>     /* fork(), close(), read(), _exit() */
-#include <string.h>     /* strncpy() */
+#include <stdio.h>  /* printf(), perror() */
+#include <stdlib.h> /*  */
+#include <unistd.h> /* fork(), close(), read(), _exit() */
+#include <string.h> /* strncpy() */
+#include <fcntl.h>
+#include <sys/file.h>
 #include <arpa/inet.h>  /* htons() */
 #include <sys/socket.h> /* socket(), bind(), listen(), accept(), connect() */
 #include <netinet/in.h>
+#include <arpa/inet.h>
+#include <time.h>
 
-#define MAIN_MENU "Select Your Role:\n1. Admin\n2. Manager\n3. Employee\n4. Customer \n5. Exit\nEnter Your Choice: "
-
-#define PORT 6008
-#define BACKLOG 100
-
+#include "helper/structure.h"
+#include "helper/common.h"
 #include "helper/customer.h"
+#include "helper/admin.h"
+#include "helper/employee.h"
+#include "helper/manager.h"
+#include "helper/login.h"
 
-void client_handler(int connectionFileDescriptor);
+void client_handler(int clientSocket);
 
 int main()
 {
@@ -73,43 +78,65 @@ int main()
     return 0;
 }
 
-void client_handler(int connectionFileDescriptor)
+void client_handler(int clientSocket)
 {
     printf("Connected to Client!\n");
     ssize_t serverMessageBytes, clientMessageBytes;
-    int userChoice;
 
-    serverMessageBytes = send(connectionFileDescriptor, MAIN_MENU, strlen(MAIN_MENU), 0);
-    if (serverMessageBytes == -1)
+    while (1)
     {
-        perror("Error writing to client socket");
-    }
+        int userChoice = 0;
+        clearBuffers();
+        serverMessageBytes = send(clientSocket, MAIN_MENU, strlen(MAIN_MENU), 0);
+        if (serverMessageBytes == -1)
+        {
+            perror("Error writing to client socket");
+        }
 
-    clientMessageBytes = recv(connectionFileDescriptor, &userChoice, sizeof(int), 0);
-    if (clientMessageBytes == -1)
-    {
-        perror("Error reading from client socket");
-    }
+        clientMessageBytes = recv(clientSocket, clientMessage, sizeof(clientMessage), 0);
+        if (clientMessageBytes == -1)
+        {
+            perror("Error reading from client socket");
+        }
 
-    switch (userChoice)
-    {
-    case 1:
-        struct user admin;
-        login(&admin, connectionFileDescriptor, 0);
-        break;
-    case 2:
-        struct user manager;
-        login(&manager, connectionFileDescriptor, 2);
-        break;
-    case 3:
-        struct user employee;
-        login(&employee, connectionFileDescriptor, 1);
-        break;
-    case 4:
-        struct user customer;
-        login(&customer, connectionFileDescriptor, 3);
-        break;
-    default:
-        break;
+        userChoice = atoi(clientMessage);
+        printf("%d\n", userChoice);
+        clearBuffers();
+        switch (userChoice)
+        {
+        case 1:
+            struct user admin;
+            login(&admin, 0, clientSocket);
+            clearBuffers();
+            break;
+
+        case 2:
+            struct user manager;
+            login(&manager, 2, clientSocket);
+            clearBuffers();
+            break;
+        case 3:
+            struct user employee;
+            login(&employee, 1, clientSocket);
+            clearBuffers();
+            break;
+        case 4:
+            struct user customer;
+            login(&customer, 3, clientSocket);
+            clearBuffers();
+            break;
+        case 5:
+            strcpy(serverMessage, "Exiting System!\n");
+            send(clientSocket, serverMessage, strlen(serverMessage), 0);
+            recv(clientSocket, dummyBuffer, sizeof(dummyBuffer), 0);
+            clearBuffers();
+            return;
+        default:
+            strcpy(serverMessage, "Invalid Choice\n");
+            send(clientSocket, serverMessage, strlen(serverMessage), 0);
+            recv(clientSocket, dummyBuffer, sizeof(dummyBuffer), 0);
+            clearBuffers();
+            break;
+        }
     }
 }
