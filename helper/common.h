@@ -1,12 +1,4 @@
 
-char serverMessage[1000], clientMessage[1000], dummyBuffer[100];
-
-void clearBuffers()
-{
-    bzero(serverMessage, sizeof(serverMessage));
-    bzero(clientMessage, sizeof(clientMessage));
-    bzero(dummyBuffer, sizeof(dummyBuffer));
-}
 
 int authenticate(struct user *loginUser)
 {
@@ -196,6 +188,7 @@ void logout(struct user *loginUser, int clientSocket)
                 perror("Error updating user status");
                 lock.l_type = F_UNLCK;
                 fcntl(fd, F_SETLK, &lock);
+                break;
             }
             else
             {
@@ -205,10 +198,10 @@ void logout(struct user *loginUser, int clientSocket)
             }
         }
     }
-    close(fd);
     send(clientSocket, "Logging out...\n", strlen("Logging out...\n"), 0);
     recv(clientSocket, dummyBuffer, sizeof(dummyBuffer), 0);
     clearBuffers();
+     close(fd);
 }
 
 int initiate_user_id()
@@ -329,6 +322,7 @@ void addUser(int role, int clientSocket)
         }
         close(account_fd);
     }
+
     if (role == 1)
     {
         strcpy(serverMessage, "Employee added successfully!\n");
@@ -338,6 +332,8 @@ void addUser(int role, int clientSocket)
     {
         strcpy(serverMessage, "Employee added successfully!\n");
         send(clientSocket, serverMessage, strlen(serverMessage), 0);
+    }else{
+        send(clientSocket,"This is Dummy\n",strlen("This is Dummy\n"),0);
     }
     recv(clientSocket, dummyBuffer, sizeof(dummyBuffer), 0);
     clearBuffers();

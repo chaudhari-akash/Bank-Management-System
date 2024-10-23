@@ -20,9 +20,10 @@ void show_employees(int clientSocket)
     send(clientSocket, serverMessage, strlen(serverMessage), 0);
     recv(clientSocket, dummyBuffer, sizeof(dummyBuffer), 0);
     clearBuffers();
+    close(fd);
 }
 
-int change_status(int user_id, int new_status,int role)
+int change_status(int user_id, int new_status, int role)
 {
     int fd = open(USER_DB, O_RDWR);
     int return_val = 0;
@@ -167,7 +168,7 @@ void modify_details(int role, int clientSocket)
         recv(clientSocket, clientMessage, sizeof(clientMessage), 0);
         new_status = atoi(clientMessage);
         clearBuffers();
-        status = change_status(user_id, new_status,role);
+        status = change_status(user_id, new_status, role);
         if (status == 1)
         {
             strcpy(serverMessage, "Status Changed Successfully!\n");
@@ -194,7 +195,7 @@ void modify_details(int role, int clientSocket)
         strcpy(new_username, clientMessage);
         clearBuffers();
 
-        status = change_username(user_id, new_username,role);
+        status = change_username(user_id, new_username, role);
         if (status == 1)
         {
             strcpy(serverMessage, "Username Changed Successfully!\n");
@@ -211,6 +212,12 @@ void modify_details(int role, int clientSocket)
             send(clientSocket, serverMessage, strlen(serverMessage), 0);
         }
         recv(clientSocket, dummyBuffer, sizeof(dummyBuffer), 0);
+        clearBuffers();
+    }
+    else
+    {
+        send(clientSocket, "Invalid Choice", strlen("Invalid Choice"), 0);
+        recv(clientSocket, dummyBuffer, sizeof(dummyBuffer),0);
         clearBuffers();
     }
 }
@@ -270,7 +277,6 @@ void manage_roles(int clientSocket)
     else
     {
         snprintf(serverMessage, sizeof(serverMessage), "Employee with User ID : %d Not Found\n", user_id);
-
         send(clientSocket, serverMessage, strlen(serverMessage), 0);
     }
     recv(clientSocket, dummyBuffer, sizeof(dummyBuffer), 0);
@@ -280,7 +286,9 @@ void manage_roles(int clientSocket)
 
 void admin(struct user *loginUser, int clientSocket)
 {
-    while (1)
+    int admin_run = 1;
+
+    while (admin_run == 1)
     {
         char admin_p_id[20];
         sprintf(admin_p_id, "%d", loginUser->user_id);
@@ -314,10 +322,10 @@ void admin(struct user *loginUser, int clientSocket)
             show_employees(clientSocket);
             break;
         case 3:
-            modify_details(3,clientSocket);
+            modify_details(3, clientSocket);
             break;
         case 4:
-            modify_details(1,clientSocket);
+            modify_details(1, clientSocket);
             break;
         case 5:
             manage_roles(clientSocket);
@@ -327,7 +335,8 @@ void admin(struct user *loginUser, int clientSocket)
             break;
         case 7:
             logout(loginUser, clientSocket);
-            return;
+            admin_run = 0;
+            break;
         default:
             send(clientSocket, "Invalid choice!\n", strlen("Invalid choice!\n"), 0);
             recv(clientSocket, dummyBuffer, sizeof(dummyBuffer), 0);

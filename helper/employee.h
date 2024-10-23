@@ -59,9 +59,11 @@ void process_loan(struct user *loginUser, int clientSocket)
     int user_id;
     int loan_amount;
     struct loan loanUser;
+    struct transaction transactionRecord;
     struct flock lock;
     off_t offset = -1;
     int status = 1;
+    char datetime[20];
 
     strcpy(serverMessage, "Enter the Loan ID: ");
     send(clientSocket, serverMessage, strlen(serverMessage), 0);
@@ -72,7 +74,7 @@ void process_loan(struct user *loginUser, int clientSocket)
     strcpy(serverMessage, "1. Approve Loan\n2. Reject Loan Enter\nEnter Your Choice : ");
     send(clientSocket, serverMessage, strlen(serverMessage), 0);
     recv(clientSocket, clientMessage, sizeof(clientMessage), 0);
-    loan_status = atof(clientMessage) - 1;
+    loan_status = atoi(clientMessage) - 1;
     clearBuffers();
 
     int fd = open(LOAN_DB, O_RDWR);
@@ -120,6 +122,17 @@ void process_loan(struct user *loginUser, int clientSocket)
             strcpy(updateAccount.username, username);
 
             status = update_user_balance(&updateAccount, loan_amount);
+            time_t now = time(NULL);
+            struct tm *local = localtime(&now);
+            strftime(datetime, sizeof(datetime), "%d-%m-%Y %H:%M", local);
+
+            transactionRecord.user_id = loginUser->user_id;
+            strcpy(transactionRecord.username, username);
+            transactionRecord.type = 1;
+            transactionRecord.amount = loan_amount;
+            transactionRecord.total_amount = updateAccount.balance;
+            strcpy(transactionRecord.timestamp, datetime);
+            append_transaction(&transactionRecord);
         }
 
         lseek(fd, offset, SEEK_SET);
@@ -151,7 +164,8 @@ void process_loan(struct user *loginUser, int clientSocket)
 
 void employee(struct user *loginUser, int clientSocket)
 {
-    while (1)
+    int emp_run = 1;
+    while (emp_run == 1)
     {
         char employee_p_id[20];
         sprintf(employee_p_id, "%d", loginUser->user_id);
@@ -194,7 +208,8 @@ void employee(struct user *loginUser, int clientSocket)
             break;
         case 6:
             logout(loginUser, clientSocket);
-            return;
+            emp_run = 0;
+            break;
         default:
             send(clientSocket, "Invalid choice!\n", strlen("Invalid choice!\n"), 0);
             recv(clientSocket, dummyBuffer, sizeof(dummyBuffer), 0);

@@ -204,7 +204,8 @@ void assign_loan_applications(int clientSocket)
 
 void manager(struct user *loginUser, int clientSocket)
 {
-    while (1)
+    int manager_run = 1;
+    while (manager_run == 1)
     {
 
         char manager_p_id[20];
@@ -248,7 +249,8 @@ void manager(struct user *loginUser, int clientSocket)
             break;
         case 6:
             logout(loginUser, clientSocket);
-            return;
+            manager_run = 0;
+            break;
         default:
             send(clientSocket, "Invalid choice!\n", strlen("Invalid choice!\n"), 0);
             recv(clientSocket, dummyBuffer, sizeof(dummyBuffer), 0);

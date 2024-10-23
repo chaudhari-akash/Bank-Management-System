@@ -10,6 +10,9 @@
 #include <arpa/inet.h>
 #include <time.h>
 
+#define PORT 6008
+#define BACKLOG 100
+
 #include "helper/structure.h"
 #include "helper/common.h"
 #include "helper/customer.h"
@@ -81,12 +84,14 @@ int main()
 void client_handler(int clientSocket)
 {
     printf("Connected to Client!\n");
-    ssize_t serverMessageBytes, clientMessageBytes;
 
-    while (1)
+    ssize_t serverMessageBytes, clientMessageBytes;
+    int run = 1;
+    while (run == 1)
     {
         int userChoice = 0;
         clearBuffers();
+
         serverMessageBytes = send(clientSocket, MAIN_MENU, strlen(MAIN_MENU), 0);
         if (serverMessageBytes == -1)
         {
@@ -100,8 +105,8 @@ void client_handler(int clientSocket)
         }
 
         userChoice = atoi(clientMessage);
-        printf("%d\n", userChoice);
         clearBuffers();
+
         switch (userChoice)
         {
         case 1:
@@ -130,7 +135,8 @@ void client_handler(int clientSocket)
             send(clientSocket, serverMessage, strlen(serverMessage), 0);
             recv(clientSocket, dummyBuffer, sizeof(dummyBuffer), 0);
             clearBuffers();
-            return;
+            run = 0;
+            break;
         default:
             strcpy(serverMessage, "Invalid Choice\n");
             send(clientSocket, serverMessage, strlen(serverMessage), 0);

@@ -294,7 +294,7 @@ void transfer_funds(struct user *loginUser, int clientSocket)
     int reciever_user_id;
     struct transaction senderTransactionRecord, recieverTransactionRecord;
     struct account senderAccount, recieverAccount;
-    off_t sender_offset, reciever_offset;
+    off_t sender_offset, reciever_offset = -1;
     struct flock sender_record_lock, reciever_record_lock;
     int sender_lock_status, reciever_lock_status;
     int sender_fd, reciever_fd;
@@ -323,94 +323,117 @@ void transfer_funds(struct user *loginUser, int clientSocket)
             break;
         }
     }
-
-    sender_record_lock.l_type = F_WRLCK;
-    sender_record_lock.l_whence = SEEK_SET;
-    sender_record_lock.l_start = sender_offset;
-    sender_record_lock.l_len = sizeof(struct account);
-    sender_record_lock.l_pid = getpid();
-
-    sender_lock_status = fcntl(sender_fd, F_SETLK, &sender_record_lock);
-
-    lseek(sender_fd, sender_offset, SEEK_SET);
-    read(sender_fd, &senderAccount, sizeof(struct account));
-
-    if (amount > senderAccount.balance)
+    while (read(reciever_fd, &recieverAccount, sizeof(struct account)) > 0)
     {
-        snprintf(serverMessage, sizeof(serverMessage), "Insufficent Balance\nTransfer Unsuccessfull!\n");
-        send(clientSocket, serverMessage, strlen(serverMessage), 0);
-        close(sender_fd);
-        close(reciever_fd);
+        if (reciever_user_id == recieverAccount.user_id)
+        {
+            reciever_offset = lseek(reciever_fd, -1 * sizeof(struct account), SEEK_CUR);
+            break;
+        }
+    }
+
+    if (reciever_offset != -1)
+    {
+        sender_record_lock.l_type = F_WRLCK;
+        sender_record_lock.l_whence = SEEK_SET;
+        sender_record_lock.l_start = sender_offset;
+        sender_record_lock.l_len = sizeof(struct account);
+        sender_record_lock.l_pid = getpid();
+
+        while (fcntl(sender_fd, F_SETLK, &sender_record_lock) == -1)
+            ;
+
+        lseek(sender_fd, sender_offset, SEEK_SET);
+        read(sender_fd, &senderAccount, sizeof(struct account));
+
+        if (amount > senderAccount.balance)
+        {
+            snprintf(serverMessage, sizeof(serverMessage), "Insufficent Balance\nTransfer Unsuccessfull!\n");
+            send(clientSocket, serverMessage, strlen(serverMessage), 0);
+
+            sender_record_lock.l_type = F_UNLCK;
+            fcntl(sender_fd, F_SETLK, &sender_record_lock);
+            close(sender_fd);
+            close(reciever_fd);
+        }
+        else
+        {
+            lseek(sender_fd, sender_offset, SEEK_SET);
+            float new_amount = senderAccount.balance - amount;
+            senderAccount.balance = new_amount;
+
+            char datetime_send[20];
+            time_t now = time(NULL);
+            struct tm *local = localtime(&now);
+            strftime(datetime_send, sizeof(datetime_send), "%d-%m-%Y %H:%M", local);
+
+            senderTransactionRecord.user_id = loginUser->user_id;
+            strcpy(senderTransactionRecord.username, loginUser->username);
+            senderTransactionRecord.amount = amount;
+            senderTransactionRecord.type = 0;
+            senderTransactionRecord.total_amount = senderAccount.balance;
+            strcpy(senderTransactionRecord.timestamp, datetime_send);
+
+            append_transaction(&senderTransactionRecord);
+
+            lseek(sender_fd, sender_offset, SEEK_SET);
+            write(sender_fd, &senderAccount, sizeof(struct account));
+            sender_record_lock.l_type = F_UNLCK;
+            fcntl(sender_fd, F_SETLK, &sender_record_lock);
+            close(sender_fd);
+
+            // lseek(reciever_fd, 0, SEEK_SET);
+            // while (read(reciever_fd, &recieverAccount, sizeof(struct account)) > 0)
+            // {
+            //     if (reciever_user_id == recieverAccount.user_id)
+            //     {
+            //         reciever_offset = lseek(reciever_fd, -1 * sizeof(struct account), SEEK_CUR);
+            //         break;
+            //     }
+            // }
+
+            reciever_record_lock.l_type = F_WRLCK;
+            reciever_record_lock.l_whence = SEEK_SET;
+            reciever_record_lock.l_start = reciever_offset;
+            reciever_record_lock.l_len = sizeof(struct account);
+            reciever_record_lock.l_pid = getpid();
+
+            while (fcntl(reciever_fd, F_SETLK, &reciever_record_lock) == -1)
+                ;
+
+            lseek(reciever_fd, reciever_offset, SEEK_SET);
+            read(reciever_fd, &recieverAccount, sizeof(struct account));
+            recieverAccount.balance += amount;
+
+            char datetime_recv[20];
+            time_t now_2 = time(NULL);
+            struct tm *local_2 = localtime(&now_2);
+            strftime(datetime_recv, sizeof(datetime_recv), "%d-%m-%Y %H:%M", local_2);
+
+            recieverTransactionRecord.user_id = recieverAccount.user_id;
+            strcpy(recieverTransactionRecord.username, recieverAccount.username);
+            recieverTransactionRecord.amount = amount;
+            recieverTransactionRecord.type = 1;
+            recieverTransactionRecord.total_amount = recieverAccount.balance;
+            strcpy(recieverTransactionRecord.timestamp, datetime_recv);
+            append_transaction(&recieverTransactionRecord);
+
+            lseek(reciever_fd, reciever_offset, SEEK_SET);
+            write(reciever_fd, &recieverAccount, sizeof(struct account));
+            reciever_record_lock.l_type = F_UNLCK;
+            fcntl(reciever_fd, F_SETLK, &reciever_record_lock);
+            close(reciever_fd);
+
+            snprintf(serverMessage, sizeof(serverMessage), "Transfer Successfull!\nNew Balance : %.2f\n", view_balance(loginUser));
+            send(clientSocket, serverMessage, strlen(serverMessage), 0);
+        }
     }
     else
     {
-        lseek(sender_fd, sender_offset, SEEK_SET);
-        float new_amount = senderAccount.balance - amount;
-        senderAccount.balance = new_amount;
-
-        char datetime_send[20];
-        time_t now = time(NULL);
-        struct tm *local = localtime(&now);
-        strftime(datetime_send, sizeof(datetime_send), "%d-%m-%Y %H:%M", local);
-
-        senderTransactionRecord.user_id = loginUser->user_id;
-        strcpy(senderTransactionRecord.username, loginUser->username);
-        senderTransactionRecord.amount = amount;
-        senderTransactionRecord.type = 0;
-        senderTransactionRecord.total_amount = senderAccount.balance;
-        strcpy(senderTransactionRecord.timestamp, datetime_send);
-
-        append_transaction(&senderTransactionRecord);
-
-        lseek(sender_fd, sender_offset, SEEK_SET);
-        write(sender_fd, &senderAccount, sizeof(struct account));
-        sender_record_lock.l_type = F_UNLCK;
-        fcntl(sender_fd, F_SETLK, &sender_record_lock);
-        close(sender_fd);
-
-        while (read(reciever_fd, &recieverAccount, sizeof(struct account)) > 0)
-        {
-            if (reciever_user_id == recieverAccount.user_id)
-            {
-                reciever_offset = lseek(reciever_fd, -1 * sizeof(struct account), SEEK_CUR);
-                break;
-            }
-        }
-
-        reciever_record_lock.l_type = F_WRLCK;
-        reciever_record_lock.l_whence = SEEK_SET;
-        reciever_record_lock.l_start = reciever_offset;
-        reciever_record_lock.l_len = sizeof(struct account);
-        reciever_record_lock.l_pid = getpid();
-
-        reciever_lock_status = fcntl(reciever_fd, F_SETLK, &reciever_record_lock);
-
-        lseek(reciever_fd, reciever_offset, SEEK_SET);
-        read(reciever_fd, &recieverAccount, sizeof(struct account));
-        recieverAccount.balance += amount;
-
-        char datetime_recv[20];
-        time_t now_2 = time(NULL);
-        struct tm *local_2 = localtime(&now_2);
-        strftime(datetime_recv, sizeof(datetime_recv), "%d-%m-%Y %H:%M", local_2);
-
-        recieverTransactionRecord.user_id = recieverAccount.user_id;
-        strcpy(recieverTransactionRecord.username, recieverAccount.username);
-        recieverTransactionRecord.amount = amount;
-        recieverTransactionRecord.type = 1;
-        recieverTransactionRecord.total_amount = recieverAccount.balance;
-        strcpy(recieverTransactionRecord.timestamp, datetime_recv);
-        append_transaction(&recieverTransactionRecord);
-
-        lseek(reciever_fd, reciever_offset, SEEK_SET);
-        write(reciever_fd, &recieverAccount, sizeof(struct account));
-        reciever_record_lock.l_type = F_UNLCK;
-        fcntl(reciever_fd, F_SETLK, &reciever_record_lock);
-        close(reciever_fd);
-
-        snprintf(serverMessage, sizeof(serverMessage), "Transfer Successfull!\nNew Balance : %.2f\n", view_balance(loginUser));
+        sprintf(serverMessage, "User with user ID %d Not Found", reciever_user_id);
         send(clientSocket, serverMessage, strlen(serverMessage), 0);
     }
+
     recv(clientSocket, dummyBuffer, sizeof(dummyBuffer), 0);
     clearBuffers();
 }
@@ -463,18 +486,22 @@ void apply_loan(struct user *loginUser, int clientSocket)
         perror("Error writing to loan database");
         lock.l_type = F_UNLCK;
         fcntl(loan_fd, F_SETLK, &lock);
-        close(loan_fd);
-        return;
+
+        strcpy(serverMessage, "Loan Application Unsuccessfull\n");
+        send(clientSocket, serverMessage, strlen(serverMessage), 0);
+    }
+    else
+    {
+        lock.l_type = F_UNLCK;
+        fcntl(loan_fd, F_SETLK, &lock);
+
+        strcpy(serverMessage, "Loan Application Successfull\n");
+        send(clientSocket, serverMessage, strlen(serverMessage), 0);
     }
 
-    lock.l_type = F_UNLCK;
-    fcntl(loan_fd, F_SETLK, &lock);
-    close(loan_fd);
-
-    strcpy(serverMessage, "Loan Successfully Applied\n");
-    send(clientSocket, serverMessage, strlen(serverMessage), 0);
     recv(clientSocket, dummyBuffer, sizeof(dummyBuffer), 0);
     clearBuffers();
+    close(loan_fd);
 }
 
 void print_loan_applications(struct user *loginUser, int clientSocket)
@@ -486,8 +513,8 @@ void print_loan_applications(struct user *loginUser, int clientSocket)
         perror("Error opening feedback database");
         return;
     }
-
-    strcpy(serverMessage, "        Loan Applications:      \n");
+    strcpy(serverMessage, "\n--------------------------------\n");
+    strcat(serverMessage, "        Loan Applications:      \n");
     strcat(serverMessage, "--------------------------------\n");
     strcat(serverMessage, "|   Loan Amount   |   Status   |\n");
     strcat(serverMessage, "--------------------------------\n");
@@ -554,7 +581,7 @@ void add_feedback(struct user *loginUser, int clientSocket)
     lock.l_len = sizeof(struct feedback);
     lock.l_pid = getpid();
 
-    fcntl(feedback_fd, F_SETLK, &lock);
+    while(fcntl(feedback_fd, F_SETLK, &lock)==-1);
 
     write_status = write(feedback_fd, &user_feedback, sizeof(struct feedback));
 
@@ -585,7 +612,7 @@ void view_transaction_history(struct user *loginUser, int clientSocket)
     }
     struct transaction trans;
 
-    strcpy(serverMessage, "\t\tYour Transactions\n");
+    strcpy(serverMessage, "\n\t\tYour Transactions\n");
     strcat(serverMessage, "--------------------------------------------------------------------\n");
     strcat(serverMessage, "|   Type   |   Amount   |   Total Balance   |   Date/Time          |\n");
     strcat(serverMessage, "--------------------------------------------------------------------\n");
@@ -625,7 +652,8 @@ void view_transaction_history(struct user *loginUser, int clientSocket)
 
 void customer(struct user *loginUser, int clientSocket)
 {
-    while (1)
+    int cust_run = 1;
+    while (cust_run == 1)
     {
         char user_p_id[20];
         sprintf(user_p_id, "%d", loginUser->user_id);
@@ -695,7 +723,8 @@ void customer(struct user *loginUser, int clientSocket)
             break;
         case 10:
             logout(loginUser, clientSocket);
-            return;
+            cust_run = 0;
+            break;
         default:
             send(clientSocket, "Invalid choice!\n", strlen("Invalid choice!\n"), 0);
             recv(clientSocket, dummyBuffer, sizeof(dummyBuffer), 0);
@@ -704,4 +733,3 @@ void customer(struct user *loginUser, int clientSocket)
         }
     }
 }
-

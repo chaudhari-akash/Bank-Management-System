@@ -1,14 +1,26 @@
-#define USER_DB "Sandbox/user.db"
-#define ACCOUNT_DB "Sandbox/account.db"
-#define LOAN_DB "Sandbox/loan.db"
-#define FEEDBACK_DB "Sandbox/feedback.db"
-#define TRANSACTION_DB "Sandbox/transaction.db"
-#define ID_FILE "Sandbox/id.db"
+#define USER_DB "../db/users.db"
+#define ACCOUNT_DB "../db/account.db"
+#define LOAN_DB "../db/loan.db"
+#define FEEDBACK_DB "../db/feedback.db"
+#define TRANSACTION_DB "../db/transaction.db"
+#define ID_FILE "../db/id.db"
 
 #define MAIN_MENU "Select Your Role:\n1. Admin\n2. Manager\n3. Employee\n4. Customer \n5. Exit\nEnter Your Choice: "
 
-#define PORT 6008
-#define BACKLOG 100
+char serverMessage[1000], clientMessage[1000], dummyBuffer[100];
+
+void clearBuffers()
+{
+    bzero(serverMessage, sizeof(serverMessage));
+    bzero(clientMessage, sizeof(clientMessage));
+    bzero(dummyBuffer, sizeof(dummyBuffer));
+}
+
+void fillDummy()
+{
+    bzero(dummyBuffer, sizeof(dummyBuffer));
+    strcpy(dummyBuffer, "This is a Dummy Message\n");
+}
 
 struct user
 {

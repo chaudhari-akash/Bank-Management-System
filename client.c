@@ -58,11 +58,12 @@ void server_handler(int connection_desciptor)
     printf("Connected to the Server!\n");
 
     ssize_t readBytes, writeBytes, dummyBytes;
-
-    while (1)
+    int run = 1;
+    while (run == 1)
     {
         int userChoice = 0;
         clearMemory();
+
         readBytes = recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
         if (readBytes == -1)
         {
@@ -97,17 +98,18 @@ void server_handler(int connection_desciptor)
             send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
             clearMemory();
 
-            fillDummy();
             recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
             int adminstatus = atoi(readBuffer);
+            fillDummy();
             send(connection_desciptor, dummyBuffer, strlen(dummyBuffer), 0);
             clearMemory();
 
             if (adminstatus == 1)
             {
-                while (1)
+                int admin_run = 1;
+                while (admin_run == 1)
                 {
-                    int admin_cust_choice;
+                    int admin_cust_choice = 0;
 
                     recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
                     printf("%s", readBuffer);
@@ -160,13 +162,17 @@ void server_handler(int connection_desciptor)
                         printf("%s", readBuffer);
                         scanf("%s", writeBuffer);
                         send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
+                        int record = atoi(writeBuffer);
                         clearMemory();
 
-                        recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
-                        printf("%s", readBuffer);
-                        scanf("%s", writeBuffer);
-                        send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
-                        clearMemory();
+                        if (record == 1 || record == 2)
+                        {
+                            recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+                            printf("%s", readBuffer);
+                            scanf("%s", writeBuffer);
+                            send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
+                            clearMemory();
+                        }
 
                         recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
                         printf("%s", readBuffer);
@@ -187,13 +193,17 @@ void server_handler(int connection_desciptor)
                         printf("%s", readBuffer);
                         scanf("%s", writeBuffer);
                         send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
+                        int record_1 = atoi(writeBuffer);
                         clearMemory();
 
-                        recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
-                        printf("%s", readBuffer);
-                        scanf("%s", writeBuffer);
-                        send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
-                        clearMemory();
+                        if (record_1 == 1 || record_1 == 2)
+                        {
+                            recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+                            printf("%s", readBuffer);
+                            scanf("%s", writeBuffer);
+                            send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
+                            clearMemory();
+                        }
 
                         recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
                         printf("%s", readBuffer);
@@ -234,6 +244,7 @@ void server_handler(int connection_desciptor)
                     case 7:
                         recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
                         printf("%s", readBuffer);
+                        admin_run = 0;
                         fillDummy();
                         send(connection_desciptor, dummyBuffer, strlen(dummyBuffer), 0);
                         clearMemory();
@@ -279,7 +290,8 @@ void server_handler(int connection_desciptor)
 
             if (managerstatus == 1)
             {
-                while (1)
+                int manager_run = 1;
+                while (manager_run == 1)
                 {
                     int manager_choice;
 
@@ -304,13 +316,17 @@ void server_handler(int connection_desciptor)
                         printf("%s", readBuffer);
                         scanf("%s", writeBuffer);
                         send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
+                        int record = atoi(writeBuffer);
                         clearMemory();
 
-                        recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
-                        printf("%s", readBuffer);
-                        scanf("%s", writeBuffer);
-                        send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
-                        clearMemory();
+                        if (record == 1 || record == 2)
+                        {
+                            recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+                            printf("%s", readBuffer);
+                            scanf("%s", writeBuffer);
+                            send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
+                            clearMemory();
+                        }
 
                         recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
                         printf("%s", readBuffer);
@@ -387,7 +403,7 @@ void server_handler(int connection_desciptor)
                         fillDummy();
                         send(connection_desciptor, dummyBuffer, strlen(dummyBuffer), 0);
                         clearMemory();
-
+                        manager_run = 0;
                         break;
 
                     default:
@@ -432,7 +448,8 @@ void server_handler(int connection_desciptor)
 
             if (employeestatus == 1)
             {
-                while (1)
+                int emp_run = 1;
+                while (emp_run == 1)
                 {
                     int employee_choice;
 
@@ -478,13 +495,17 @@ void server_handler(int connection_desciptor)
                         printf("%s", readBuffer);
                         scanf("%s", writeBuffer);
                         send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
+                        int record = atoi(writeBuffer);
                         clearMemory();
 
-                        recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
-                        printf("%s", readBuffer);
-                        scanf("%s", writeBuffer);
-                        send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
-                        clearMemory();
+                        if (record == 1 || record == 2)
+                        {
+                            recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+                            printf("%s", readBuffer);
+                            scanf("%s", writeBuffer);
+                            send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
+                            clearMemory();
+                        }
 
                         recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
                         printf("%s", readBuffer);
@@ -541,6 +562,7 @@ void server_handler(int connection_desciptor)
                     case 6:
                         recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
                         printf("%s", readBuffer);
+                        emp_run = 0;
                         fillDummy();
                         send(connection_desciptor, dummyBuffer, strlen(dummyBuffer), 0);
                         clearMemory();
@@ -588,7 +610,8 @@ void server_handler(int connection_desciptor)
 
             if (status == 1)
             {
-                while (1)
+                int cust_run = 1;
+                while (cust_run == 1)
                 {
                     int cust_choice;
 
@@ -723,13 +746,13 @@ void server_handler(int connection_desciptor)
                         fillDummy();
                         send(connection_desciptor, dummyBuffer, strlen(dummyBuffer), 0);
                         clearMemory();
-
                         break;
                     case 10:
 
                         recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
                         printf("%s", readBuffer);
                         fillDummy();
+                        cust_run = 0;
                         send(connection_desciptor, dummyBuffer, strlen(dummyBuffer), 0);
                         clearMemory();
 
@@ -761,7 +784,7 @@ void server_handler(int connection_desciptor)
             fillDummy();
             send(connection_desciptor, dummyBuffer, strlen(dummyBuffer), 0);
             clearMemory();
-            return;
+            run = 0;
             break;
         default:
             recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);

@@ -1,8 +1,7 @@
 void login(struct user *loginUser, int user_role, int clientSocket)
 {
-    int role = user_role;
     loginUser->role = user_role;
-    int user_auth;
+    int user_auth = 0;
 
     strcpy(serverMessage, "Enter Username: ");
     send(clientSocket, serverMessage, strlen(serverMessage), 0);
@@ -38,6 +37,9 @@ void login(struct user *loginUser, int user_role, int clientSocket)
             break;
         case 3:
             customer(loginUser, clientSocket);
+            break;
+        default:
+            printf("Problem in getting Role\n");
             break;
         }
     }
