@@ -1,0 +1,46 @@
+@startuml Banking
+class User {
+    -int user_id
+    -char username[50]
+    -unsigned long hashed_password
+    -int role 
+    -int session 
+    -int status
+}
+
+class Account {
+    -int user_id
+    -char username[50]
+    -float balance
+}
+
+class Loan {
+    -int loan_id
+    -int user_id
+    -char username[50]
+    -float loan_amount
+    -int status 
+    -int assigned_id
+}
+
+class Feedback {
+    -int user_id
+    -char username[50]
+    -char feedback[1000]
+}
+
+class Transaction {
+    -int user_id
+    -char username[50]
+    -int type 
+    -float amount
+    -float total_amount
+    -char timestamp[100]
+}
+
+User "1" -- "0..*" Account
+User "1" -- "0..*" Loan
+User "1" -- "0..*" Feedback
+User "1" -- "0..*" Transaction
+
+@enduml
