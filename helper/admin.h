@@ -42,9 +42,17 @@ int change_status(int user_id, int new_status, int role)
     {
         if (findUser.user_id == user_id && findUser.role == role)
         {
-            findUser.status = new_status;
-            offset = lseek(fd, -1 * sizeof(struct user), SEEK_CUR);
-            break;
+            if (findUser.session == 0)
+            {
+                return_val = 3;
+                break;
+            }
+            else
+            {
+                findUser.status = new_status;
+                offset = lseek(fd, -1 * sizeof(struct user), SEEK_CUR);
+                break;
+            }
         }
         else
         {
@@ -102,9 +110,17 @@ int change_username(int user_id, char *new_username, int role)
     {
         if (findUser.user_id == user_id && findUser.role == role)
         {
-            strcpy(findUser.username, new_username);
-            offset = lseek(fd, -1 * sizeof(struct user), SEEK_CUR);
-            break;
+            if (findUser.session == 0)
+            {
+                return_val = 3;
+                break;
+            }
+            else
+            {
+                strcpy(findUser.username, new_username);
+                offset = lseek(fd, -1 * sizeof(struct user), SEEK_CUR);
+                break;
+            }
         }
         else
         {
@@ -181,7 +197,12 @@ void modify_details(int role, int clientSocket)
         }
         else if (status == 2)
         {
-            sprintf(serverMessage, "User with user ID %d Not Found", user_id);
+            sprintf(serverMessage, "User with user ID %d Not Found\n", user_id);
+            send(clientSocket, serverMessage, strlen(serverMessage), 0);
+        }
+        else if (status == 3)
+        {
+            sprintf(serverMessage, "Status Not Updated!\nUser with user ID %d is Currently Active\n", user_id);
             send(clientSocket, serverMessage, strlen(serverMessage), 0);
         }
         recv(clientSocket, dummyBuffer, sizeof(dummyBuffer), 0);
@@ -211,13 +232,18 @@ void modify_details(int role, int clientSocket)
             sprintf(serverMessage, "User with user ID %d Not Found", user_id);
             send(clientSocket, serverMessage, strlen(serverMessage), 0);
         }
+        else if (status == 3)
+        {
+            sprintf(serverMessage, "Status Not Updated!\nUser with user ID %d is Currently Active\n", user_id);
+            send(clientSocket, serverMessage, strlen(serverMessage), 0);
+        }
         recv(clientSocket, dummyBuffer, sizeof(dummyBuffer), 0);
         clearBuffers();
     }
     else
     {
         send(clientSocket, "Invalid Choice", strlen("Invalid Choice"), 0);
-        recv(clientSocket, dummyBuffer, sizeof(dummyBuffer),0);
+        recv(clientSocket, dummyBuffer, sizeof(dummyBuffer), 0);
         clearBuffers();
     }
 }
@@ -226,6 +252,7 @@ void manage_roles(int clientSocket)
 {
     int user_id;
     int fd = open(USER_DB, O_RDWR);
+    int r = 0;
 
     strcpy(serverMessage, "Enter the User ID: ");
     send(clientSocket, serverMessage, strlen(serverMessage), 0);
@@ -240,9 +267,18 @@ void manage_roles(int clientSocket)
 
     while (read(fd, &findUser, sizeof(struct user)) > 0)
     {
-        if (findUser.user_id == user_id)
+        if (findUser.user_id == user_id && findUser.role == 1)
         {
-            findUser.role = 2;
+            if (findUser.session == 1 && findUser.status == 0)
+            {
+                r = 1;
+                findUser.role = 2;
+            }
+            else
+            {
+                r = 2;
+            }
+
             offset = lseek(fd, -1 * sizeof(struct user), SEEK_CUR);
             break;
         }
@@ -260,14 +296,24 @@ void manage_roles(int clientSocket)
 
         lseek(fd, offset, SEEK_SET);
         write_bytes = write(fd, &findUser, sizeof(struct user));
-        if (write_bytes == sizeof(struct user))
+        if (write_bytes == sizeof(struct user) && r == 1)
         {
-            snprintf(serverMessage, sizeof(serverMessage), "Employee %s Role Changed to Manager!\n", findUser.username);
+            snprintf(serverMessage, sizeof(serverMessage), "\nEmployee %s Role Changed to Manager!\n", findUser.username);
+            send(clientSocket, serverMessage, strlen(serverMessage), 0);
+        }
+        else if (r == 0)
+        {
+            snprintf(serverMessage, sizeof(serverMessage), "\nEmployee with ID %d Not Found!\n", user_id);
+            send(clientSocket, serverMessage, strlen(serverMessage), 0);
+        }
+        else if (r == 2)
+        {
+            snprintf(serverMessage, sizeof(serverMessage), "\nEmployee with ID %d Currently Active!\n", user_id);
             send(clientSocket, serverMessage, strlen(serverMessage), 0);
         }
         else
         {
-            strcpy(serverMessage, "Employee Role Change Unsuccessfull\n");
+            strcpy(serverMessage, "\nEmployee Role Change Unsuccessfull\n");
             send(clientSocket, serverMessage, strlen(serverMessage), 0);
         }
 

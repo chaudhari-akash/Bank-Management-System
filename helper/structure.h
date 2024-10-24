@@ -1,9 +1,9 @@
-#define USER_DB "../db/users.db"
-#define ACCOUNT_DB "../db/account.db"
-#define LOAN_DB "../db/loan.db"
-#define FEEDBACK_DB "../db/feedback.db"
-#define TRANSACTION_DB "../db/transaction.db"
-#define ID_FILE "../db/id.db"
+#define USER_DB "db/users.db"
+#define ACCOUNT_DB "db/account.db"
+#define LOAN_DB "db/loan.db"
+#define FEEDBACK_DB "db/feedback.db"
+#define TRANSACTION_DB "db/transaction.db"
+#define ID_FILE "db/id.db"
 
 #define MAIN_MENU "Select Your Role:\n1. Admin\n2. Manager\n3. Employee\n4. Customer \n5. Exit\nEnter Your Choice: "
 

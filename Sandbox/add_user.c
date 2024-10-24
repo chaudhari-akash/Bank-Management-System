@@ -7,9 +7,9 @@
 #include <sys/types.h>
 #include <errno.h>
 
-#define ID_FILE "id.db"
-#define USER_DB "user.db"
-#define ACCOUNT_DB "account.db"
+#define USER_DB "../db/users.db"
+#define ACCOUNT_DB "../db/account.db"
+#define ID_FILE "../db/id.db"
 
 struct user
 {

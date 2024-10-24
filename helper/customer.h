@@ -332,7 +332,20 @@ void transfer_funds(struct user *loginUser, int clientSocket)
         }
     }
 
-    if (reciever_offset != -1)
+    int ufd = open(USER_DB, O_RDONLY);
+    struct user recieverUser;
+    int rs = 0;
+
+    while (read(ufd, &recieverUser, sizeof(struct user)) > 0)
+    {
+        if (reciever_user_id == recieverUser.user_id &&recieverUser.status == 0)
+        {
+            rs = 1;
+            break;
+        }
+    }
+
+    if (reciever_offset != -1 && rs == 1)
     {
         sender_record_lock.l_type = F_WRLCK;
         sender_record_lock.l_whence = SEEK_SET;
@@ -348,7 +361,7 @@ void transfer_funds(struct user *loginUser, int clientSocket)
 
         if (amount > senderAccount.balance)
         {
-            snprintf(serverMessage, sizeof(serverMessage), "Insufficent Balance\nTransfer Unsuccessfull!\n");
+            snprintf(serverMessage, sizeof(serverMessage), "\nInsufficent Balance\nTransfer Unsuccessfull!\n");
             send(clientSocket, serverMessage, strlen(serverMessage), 0);
 
             sender_record_lock.l_type = F_UNLCK;
@@ -367,8 +380,8 @@ void transfer_funds(struct user *loginUser, int clientSocket)
             struct tm *local = localtime(&now);
             strftime(datetime_send, sizeof(datetime_send), "%d-%m-%Y %H:%M", local);
 
-            senderTransactionRecord.user_id = loginUser->user_id;
-            strcpy(senderTransactionRecord.username, loginUser->username);
+            senderTransactionRecord.user_id = senderAccount.user_id;
+            strcpy(senderTransactionRecord.username, senderAccount.username);
             senderTransactionRecord.amount = amount;
             senderTransactionRecord.type = 0;
             senderTransactionRecord.total_amount = senderAccount.balance;
@@ -377,20 +390,10 @@ void transfer_funds(struct user *loginUser, int clientSocket)
             append_transaction(&senderTransactionRecord);
 
             lseek(sender_fd, sender_offset, SEEK_SET);
-            write(sender_fd, &senderAccount, sizeof(struct account));
+            int wr_s = write(sender_fd, &senderAccount, sizeof(struct account));
             sender_record_lock.l_type = F_UNLCK;
             fcntl(sender_fd, F_SETLK, &sender_record_lock);
             close(sender_fd);
-
-            // lseek(reciever_fd, 0, SEEK_SET);
-            // while (read(reciever_fd, &recieverAccount, sizeof(struct account)) > 0)
-            // {
-            //     if (reciever_user_id == recieverAccount.user_id)
-            //     {
-            //         reciever_offset = lseek(reciever_fd, -1 * sizeof(struct account), SEEK_CUR);
-            //         break;
-            //     }
-            // }
 
             reciever_record_lock.l_type = F_WRLCK;
             reciever_record_lock.l_whence = SEEK_SET;
@@ -424,13 +427,13 @@ void transfer_funds(struct user *loginUser, int clientSocket)
             fcntl(reciever_fd, F_SETLK, &reciever_record_lock);
             close(reciever_fd);
 
-            snprintf(serverMessage, sizeof(serverMessage), "Transfer Successfull!\nNew Balance : %.2f\n", view_balance(loginUser));
+            snprintf(serverMessage, sizeof(serverMessage), "\nTransfer Successfull!\nNew Balance : %.2f\n", view_balance(loginUser));
             send(clientSocket, serverMessage, strlen(serverMessage), 0);
         }
     }
     else
     {
-        sprintf(serverMessage, "User with user ID %d Not Found", reciever_user_id);
+        sprintf(serverMessage, "\nUser with user ID %d Not Found\n", reciever_user_id);
         send(clientSocket, serverMessage, strlen(serverMessage), 0);
     }
 
@@ -487,7 +490,7 @@ void apply_loan(struct user *loginUser, int clientSocket)
         lock.l_type = F_UNLCK;
         fcntl(loan_fd, F_SETLK, &lock);
 
-        strcpy(serverMessage, "Loan Application Unsuccessfull\n");
+        strcpy(serverMessage, "\nLoan Application Unsuccessfull\n");
         send(clientSocket, serverMessage, strlen(serverMessage), 0);
     }
     else
@@ -495,7 +498,7 @@ void apply_loan(struct user *loginUser, int clientSocket)
         lock.l_type = F_UNLCK;
         fcntl(loan_fd, F_SETLK, &lock);
 
-        strcpy(serverMessage, "Loan Application Successfull\n");
+        strcpy(serverMessage, "\nLoan Application Successfull\n");
         send(clientSocket, serverMessage, strlen(serverMessage), 0);
     }
 
@@ -538,7 +541,7 @@ void print_loan_applications(struct user *loginUser, int clientSocket)
             }
             snprintf(loanAmount, sizeof(loanAmount), "%.2f", loanApplications.loan_amount);
             char loanEntry[100];
-            snprintf(loanEntry, sizeof(loanEntry), "   %-12s      %-8s   \n", loanAmount, loanStatus);
+            snprintf(loanEntry, sizeof(loanEntry), "   %-12s      %-8s   ", loanAmount, loanStatus);
             strcat(serverMessage, loanEntry);
         }
     }
@@ -581,7 +584,8 @@ void add_feedback(struct user *loginUser, int clientSocket)
     lock.l_len = sizeof(struct feedback);
     lock.l_pid = getpid();
 
-    while(fcntl(feedback_fd, F_SETLK, &lock)==-1);
+    while (fcntl(feedback_fd, F_SETLK, &lock) == -1)
+        ;
 
     write_status = write(feedback_fd, &user_feedback, sizeof(struct feedback));
 

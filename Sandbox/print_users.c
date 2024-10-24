@@ -1,14 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <string.h>
 #include <fcntl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <errno.h>
 
-#define USER_DB "user.db"
-#define ACCOUNT_DB "account.db"
+#define USER_DB "../db/users.db"
 
 struct user
 {
@@ -20,14 +15,7 @@ struct user
     int status;  // 0:Active  1: Inactive
 };
 
-struct account
-{
-    int user_id;
-    char username[50];
-    float balance;
-};
-
-void print()
+void print_users()
 {
     int fd = open(USER_DB, O_RDWR);
     struct user User;
@@ -35,7 +23,7 @@ void print()
     {
         printf("User ID: %d\n", User.user_id);
         printf("Username: %s\n", User.username);
-         printf("Password: %ld\n", User.hashed_password);
+        printf("Password: %ld\n", User.hashed_password);
         printf("Role: ");
         switch (User.role)
         {
@@ -58,26 +46,12 @@ void print()
         printf("Status: %s\n", (User.status == 0) ? "Active" : "Inactive");
         printf("------------------------------------\n");
     }
+    close(fd);
 }
-
-void print_account()
-{
-    int fd = open(ACCOUNT_DB, O_RDWR);
-    struct account User;
-    while (read(fd, &User, sizeof(struct account)) > 0)
-    {
-        printf("User ID: %d\n", User.user_id);
-        printf("Username: %s\n", User.username);
-        printf("Password: %f\n", User.balance);
-        printf("Balance : %f\n",User.balance);
-        printf("------------------------------------\n");
-    }
-}
-
 
 int main()
 {
-    print();
-    // print_account();
+    print_users();
+
     return 0;
 }

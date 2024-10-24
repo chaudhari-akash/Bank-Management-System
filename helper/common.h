@@ -104,9 +104,9 @@ void change_password(struct user *loginUser, int clientSocket)
 
     while (read(fd, &tempUser, sizeof(struct user)) > 0)
     {
-        if (loginUser->user_id == tempUser.user_id)
+        if (loginUser->user_id == tempUser.user_id && tempUser.status == 0 && loginUser->role == tempUser.role)
         {
-            loginUser->hashed_password = hash_password(new_password);
+            tempUser.hashed_password = hash_password(new_password);
             offset = lseek(fd, -1 * sizeof(struct user), SEEK_CUR); // Move back to the correct position
             break;
         }
@@ -124,7 +124,7 @@ void change_password(struct user *loginUser, int clientSocket)
 
         fcntl(fd, F_SETLK, &lock);
         off_t of = (fd, offset, SEEK_SET);
-        int write_status = write(fd, loginUser, sizeof(struct user));
+        int write_status = write(fd, &tempUser, sizeof(struct user));
         if (write_status == sizeof(struct user))
         {
             strcpy(serverMessage, "Password Change Successful\n");
@@ -201,7 +201,7 @@ void logout(struct user *loginUser, int clientSocket)
     send(clientSocket, "Logging out...\n", strlen("Logging out...\n"), 0);
     recv(clientSocket, dummyBuffer, sizeof(dummyBuffer), 0);
     clearBuffers();
-     close(fd);
+    close(fd);
 }
 
 int initiate_user_id()
@@ -332,11 +332,12 @@ void addUser(int role, int clientSocket)
     {
         strcpy(serverMessage, "Employee added successfully!\n");
         send(clientSocket, serverMessage, strlen(serverMessage), 0);
-    }else{
-        send(clientSocket,"This is Dummy\n",strlen("This is Dummy\n"),0);
+    }
+    else
+    {
+        send(clientSocket, "This is Dummy\n", strlen("This is Dummy\n"), 0);
     }
     recv(clientSocket, dummyBuffer, sizeof(dummyBuffer), 0);
     clearBuffers();
     close(user_fd);
 }
-

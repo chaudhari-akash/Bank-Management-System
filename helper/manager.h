@@ -16,7 +16,7 @@ void print_feedback(int clientSocket)
         strcat(serverMessage, "Username: ");
         strcat(serverMessage, user_feedback.username);
         strcat(serverMessage, "\n");
-        strcat(serverMessage, "Feedback: \n");
+        strcat(serverMessage, "Feedback: ");
         strcat(serverMessage, user_feedback.feedback);
         strcat(serverMessage, "\n");
         strcat(serverMessage, "-----------------------------\n");
@@ -220,7 +220,7 @@ void manager(struct user *loginUser, int clientSocket)
         strcat(serverMessage, "1. Modify Customer Details\n");
         strcat(serverMessage, "2. View Loan Applications\n");
         strcat(serverMessage, "3. Assign Loan Applications\n");
-        strcat(serverMessage, "4. View Customer Feedback");
+        strcat(serverMessage, "4. View Customer Feedback\n");
         strcat(serverMessage, "5. Change Password\n");
         strcat(serverMessage, "6. Logout\n");
         strcat(serverMessage, "Enter Your Choice : ");

@@ -6,7 +6,7 @@
 #include <sys/socket.h> /* socket(), bind(), listen(), accept(), connect() */
 #include <netinet/in.h>
 
-#define PORT 6008
+#define PORT 6010
 #define BACKLOG 100
 char readBuffer[1000], writeBuffer[1000], dummyBuffer[100];
 

@@ -10,7 +10,7 @@
 #include <arpa/inet.h>
 #include <time.h>
 
-#define PORT 6008
+#define PORT 6010
 #define BACKLOG 100
 
 #include "helper/structure.h"
