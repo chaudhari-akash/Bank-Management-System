@@ -1,4 +1,39 @@
 
+void print_trans(int clientSocket)
+{
+    int user_id = 0;
+
+    strcpy(serverMessage, "Enter the Customer ID: ");
+    send(clientSocket, serverMessage, strlen(serverMessage), 0);
+    recv(clientSocket, clientMessage, sizeof(clientMessage), 0);
+    user_id = atoi(clientMessage);
+    clearBuffers();
+    int ufd = open(USER_DB, O_RDONLY);
+    struct user User;
+    int rs = 0;
+
+    while (read(ufd, &User, sizeof(struct user)) > 0)
+    {
+        if (user_id == User.user_id && User.status == 0 && User.role == 3)
+        {
+            rs = 1;
+            break;
+        }
+    }
+    if (rs == 1)
+    {
+        view_transaction_history(&User, clientSocket);
+        clearBuffers();
+    }
+    else
+    {
+        send(clientSocket, "\nCustomer Not Found!\n", strlen("\nCustomer Not Found!\n"), 0);
+        recv(clientSocket, dummyBuffer, sizeof(dummyBuffer), 0);
+        clearBuffers();
+    }
+    close(ufd);
+}
+
 void view_loan_applications(struct user *loginUser, int clientSocket)
 {
     struct loan loanApplications;
@@ -180,8 +215,9 @@ void employee(struct user *loginUser, int clientSocket)
         strcat(serverMessage, "2. Modify Customer Details\n");
         strcat(serverMessage, "3. View Loan Applications\n");
         strcat(serverMessage, "4. Approve/Reject Loans Applications\n");
-        strcat(serverMessage, "5. Change Password\n");
-        strcat(serverMessage, "6. Logout\n");
+        strcat(serverMessage, "5. View Customer Transactions\n");
+        strcat(serverMessage, "6. Change Password\n");
+        strcat(serverMessage, "7. Logout\n");
         strcat(serverMessage, "Enter Your Choice : ");
 
         send(clientSocket, serverMessage, strlen(serverMessage), 0);
@@ -204,9 +240,13 @@ void employee(struct user *loginUser, int clientSocket)
             process_loan(loginUser, clientSocket);
             break;
         case 5:
-            change_password(loginUser, clientSocket);
+
+            print_trans(clientSocket);
             break;
         case 6:
+            change_password(loginUser, clientSocket);
+            break;
+        case 7:
             logout(loginUser, clientSocket);
             emp_run = 0;
             break;

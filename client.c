@@ -557,9 +557,24 @@ void server_handler(int connection_desciptor)
                         fillDummy();
                         send(connection_desciptor, dummyBuffer, strlen(dummyBuffer), 0);
                         clearMemory();
-
+                        
                         break;
                     case 6:
+
+                        recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+                        printf("%s", readBuffer);
+                        scanf("%s", writeBuffer);
+                        send(connection_desciptor, writeBuffer, strlen(writeBuffer), 0);
+                        clearMemory();
+
+                        recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
+                        printf("%s", readBuffer);
+                        fillDummy();
+                        send(connection_desciptor, dummyBuffer, strlen(dummyBuffer), 0);
+                        clearMemory();
+
+                        break;
+                    case 7:
                         recv(connection_desciptor, readBuffer, sizeof(readBuffer), 0);
                         printf("%s", readBuffer);
                         emp_run = 0;
