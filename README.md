@@ -1,4 +1,4 @@
-# Mini Project
+# Bank Management System
 
 ## Class Diagram
 
